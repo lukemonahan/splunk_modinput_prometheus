@@ -80,3 +80,4 @@ In your Prometheus runtime YML file, ensure the following is set:
  - Only Linux on x86_64 is tested for now
  - TLS is not yet supported, and is targeted for future enhancement
  - No authentication or authorization to send data to the endpoint is available, but is also targeted for a future release
+ - Splunk `host` field is static. Future releases will set this to the hostname/address of the sending Prometheus server.
