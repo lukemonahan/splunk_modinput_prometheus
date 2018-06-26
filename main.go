@@ -31,7 +31,7 @@ type Input struct {
 
 type Configuration struct {
   XMLName xml.Name `xml:"configuration"`
-  Stanza Stanza `xml:"stanza"`
+  Stanzas []Stanza `xml:"stanza"`
 }
 
 type Stanza struct {
@@ -46,6 +46,17 @@ type Param struct {
   Value string `xml:",chardata"`
 }
 // End XML structs
+
+type InputConfig struct {
+  ListenAddr string
+  BearerToken string
+  Whitelist []glob.Glob
+  Blacklist []glob.Glob
+  Index string
+  Sourcetype string
+  Host string
+  MaxClients int
+}
 
 func main() {
 
@@ -69,14 +80,14 @@ func do_scheme() string {
       <description>Listen on a TCP port as a remote write endpoint for the Prometheus metrics server</description>
       <use_external_validation>false</use_external_validation>
       <streaming_mode>simple</streaming_mode>
+      <use_single_instance>true</use_single_instance>
       <endpoint>
         <args>
           <arg name="listen_port">
             <title>HTTP port</title>
             <description>The port to run our HTTP server, which will be the remote write endpoint for Prometheus (default 8098)</description>
-            <validation>is_avail_tcp_port('listen_port')</validation>
-            <required_on_edit>true</required_on_edit>
-            <required_on_create>true</required_on_create>
+            <required_on_edit>false</required_on_edit>
+            <required_on_create>false</required_on_create>
           </arg>
           <arg name="whitelist">
             <title>Whitelist</title>
@@ -108,48 +119,75 @@ func validate_arguments() {
 
 func run() error {
 
-        var (
-            listenAddr            = ":8098"
-            whitelistStr          = "*"
-            blacklistStr          = ""
-            maxClients            = 10
-        )
-
         // Parse arguments
         data, _ := ioutil.ReadAll(os.Stdin)
         var input Input
         xml.Unmarshal(data, &input)
 
-        for _, p := range input.Configuration.Stanza.Params {
-          if p.Name == "listen_port" { listenAddr = ":" + p.Value }
-          if p.Name == "whitelist" { whitelistStr = p.Value }
-          if p.Name == "blacklist" { blacklistStr = p.Value }
-          if p.Name == "max_clients" {
-            maxClients, error := strconv.Atoi(p.Value)
-            if error != nil || maxClients <= 0 { maxClients = 10 }
+        var globalConfig InputConfig
+        configMap := make(map[string]InputConfig)
+
+        for _, s := range input.Configuration.Stanzas {
+          var inputConfig InputConfig
+          for _, p := range s.Params {
+            if p.Name == "listen_port" { inputConfig.ListenAddr = ":" + p.Value }
+            if p.Name == "whitelist" {
+              for _, w := range strings.Split(p.Value, ",") {
+                inputConfig.Whitelist = append(inputConfig.Whitelist, glob.MustCompile(w))
+              }
+            }
+            if p.Name == "blacklist" {
+              for _, b := range strings.Split(p.Value, ",") {
+                inputConfig.Blacklist = append(inputConfig.Blacklist, glob.MustCompile(b))
+              }
+            }
+            if p.Name == "max_clients" {
+              maxClients, error := strconv.Atoi(p.Value)
+              if error != nil || maxClients <= 0 {
+                inputConfig.MaxClients = 10
+              } else {
+                inputConfig.MaxClients = maxClients
+              }
+            }
+            if p.Name == "bearer_token" { inputConfig.BearerToken = p.Value }
+            if p.Name == "index" { inputConfig.Index = p.Value }
+            if p.Name == "sourcetype" { inputConfig.Sourcetype = p.Value }
+            if p.Name == "host" { inputConfig.Host = p.Value }
+
+          }
+
+          if s.Name == "prometheus://default" {
+            globalConfig = inputConfig
+          } else {
+            configMap[inputConfig.BearerToken] = inputConfig
           }
         }
 
-        var whitelist []glob.Glob
-        for _, w := range strings.Split(whitelistStr, ",") {
-          whitelist = append(whitelist, glob.MustCompile(w))
-        }
-
-        var blacklist []glob.Glob
-        for _, b := range strings.Split(blacklistStr, ",") {
-          blacklist = append(blacklist, glob.MustCompile(b))
-        }
-
         // Semaphore to limit to maxClients concurrency
-        sema := make(chan struct{}, maxClients)
+        sema := make(chan struct{}, globalConfig.MaxClients)
 
         // Output of metrics are sent to Splunk via log interface
         // This ensures parallel requests don't interleave, which can happen using stdout directly
         output := log.New(os.Stdout, "", 0)
 
+        // Actual logging (goes to splunkd.log)
+        //errLog := log.New(os.Stderr, "ERROR ", 0)
+        //infoLog := log.New(os.Stderr, "INFO ", 0)
+        //debugLog := log.New(os.Stderr, "DEBUG ", 0)
+
+
         http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-                // ***SPLUNK*** <metadata field>=<string> <metadata field>=<string> ...
+                // Get the bearer token and corresponding config
+                bearerToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+
+                if _, ok := configMap[bearerToken]; !ok {
+                  http.Error(w, "Bearer token not recognized. Please contact your Splunk admin.", http.StatusUnauthorized)
+                  return
+                }
+
+                inputConfig := configMap[bearerToken]
+
                 // This will queue a client if > maxClients are processing
                 sema <- struct{}{}
                 defer func() { <-sema } ()
@@ -158,6 +196,8 @@ func run() error {
                 // Asynchronously dump to stdout (via logger) at end of request
                 // We dump it all at once, as we may have index/sourcetype etc. directives
                 var buffer bytes.Buffer
+
+                buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
 
                 compressed, err := ioutil.ReadAll(r.Body)
                 if err != nil {
@@ -184,14 +224,14 @@ func run() error {
                         }
 
                         whitelisted := false
-                        for _, w := range whitelist {
+                        for _, w := range inputConfig.Whitelist {
                           if (w.Match(string(m["__name__"]))) { whitelisted = true }
                         }
 
                         if !whitelisted { continue }
 
                         blacklisted := false
-                        for _, b := range blacklist {
+                        for _, b := range inputConfig.Blacklist {
                           if (b.Match(string(m["__name__"]))) { blacklisted = true }
                         }
 
@@ -206,5 +246,5 @@ func run() error {
                 output.Print(buffer.String())
         })
 
-        return http.ListenAndServe(listenAddr, nil)
+        return http.ListenAndServe(globalConfig.ListenAddr, nil)
 }

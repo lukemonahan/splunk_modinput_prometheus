@@ -1,5 +1,6 @@
 [prometheus://<name>]
 listen_port = <number>
+max_clients = <number>
+bearer_token = <string>
 whitelist = <glob pattern>,<glob pattern>,...
 blacklist = <glob pattern>,<glob pattern>,...
-max_clients = <number>
