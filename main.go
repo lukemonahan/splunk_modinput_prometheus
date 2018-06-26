@@ -5,9 +5,10 @@ import (
         "math"
         "strings"
         "io/ioutil"
-        "bufio"
         "net/http"
         "os"
+        "log"
+        "bytes"
         "encoding/xml"
         "strconv"
 
@@ -142,17 +143,21 @@ func run() error {
         // Semaphore to limit to maxClients concurrency
         sema := make(chan struct{}, maxClients)
 
-        // Buffer stdout
-        f := bufio.NewWriter(os.Stdout)
+        // Output of metrics are sent to Splunk via log interface
+        // This ensures parallel requests don't interleave, which can happen using stdout directly
+        output := log.New(os.Stdout, "", 0)
 
         http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
+                // ***SPLUNK*** <metadata field>=<string> <metadata field>=<string> ...
                 // This will queue a client if > maxClients are processing
                 sema <- struct{}{}
                 defer func() { <-sema } ()
 
-                // Flush metrics back to Splunk at end of func
-                defer f.Flush()
+                // A buffer to build out metrics in for this request
+                // Asynchronously dump to stdout (via logger) at end of request
+                // We dump it all at once, as we may have index/sourcetype etc. directives
+                var buffer bytes.Buffer
 
                 compressed, err := ioutil.ReadAll(r.Body)
                 if err != nil {
@@ -194,9 +199,11 @@ func run() error {
 
                         for _, s := range ts.Samples {
                                 if math.IsNaN(s.Value) { continue } // Splunk won't accept NaN metrics
-                                fmt.Fprintln(f, s.Timestamp, s.Value, m)
+                                buffer.WriteString(fmt.Sprintf("%d %f %s\n", s.Timestamp, s.Value, m))
                         }
                 }
+
+                output.Print(buffer.String())
         })
 
         return http.ListenAndServe(listenAddr, nil)
