@@ -8,6 +8,8 @@ Splunk [splunk.com](https://www.splunk.com) is a platform for machine data analy
 
 This Splunk add-on provides a bridge so that the Prometheus remote-write feature can continuously deliver metrics to a Splunk Enterprise system for long-term storage, analysis and integration with other data sources in Splunk. It is structured as a Splunk app that provides a modular input implementing the remote-write bridge. When installed and enabled, this add-on will add a new listening port to your Splunk server which can be the target for multiple Prometheus servers remote write.
 
+It has been designed to mimic the Splunk HTTP Event Collector from a configuration standpoint, however the endpoint is much simpler as it only support Prometheus remote-write. The HEC is not used as Prometheus remote-write requires Speedy compression and Protocol Buffer encoding, both of which do not work with the HEC.
+
 ## Architecture overview
 
 ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/overview.png)
@@ -46,12 +48,12 @@ This add-on is installed just like any Splunk app: either through the web UI, de
 
 We recommend installing on a heavy forwarder, so the processing of events into metrics occurs at the collection point and not on indexers. The app is only tested on a heavy instance so far, but if you use a Universal Forwarder be sure to also install on your HFs/Indexers as there are index-time transforms to process the received metrics.
 
-Multiple input stanzas are required, but only one HTTP server is ever run. The individual inputs are distinguished by bearer tokens. A special `[prometheus://default]` sets up the HTTP server, and any other named input configures the specifics for that input itself.
+Multiple input stanzas are required, but only one HTTP server is ever run. The individual inputs are distinguished by bearer tokens. A special `[prometheus]` sets up the HTTP server, and any other named input configures the specifics for that input itself.
 
 e.g.
 
 ```
-[prometheus://default]
+[prometheus]
 listen_port = 8098
 max_clients = 10
 disabled = 0
@@ -62,13 +64,22 @@ index = prometheus
 whitelist = *
 sourcetype = prometheus:metric
 disabled = 0
+
+[prometheus://another]
+bearer_token = DEF456
+index = another_metrics_index
+whitelist = net*
+sourcetype = prometheus:metric
+disabled = 0
 ```
 
 This starts the HTTP listener on port 8098, and any metrics coming in with a bearer token of "ABC123" will be directed to the "testing" input. Not including a bearer token will result in a HTTP 401 (Unauthorized).
 
 The input can be configured in Splunk web in the usual place, or in inputs.conf directly.
 
-### Default input parameters
+### Global input parameters
+
+These parameters should be set under the [prometheus] stanza.
 
 **listen_port**
 The TCP port to listen on. Default 8098.
@@ -76,7 +87,10 @@ The TCP port to listen on. Default 8098.
 **max_clients**
 The maximum number of simultaneous HTTP requests the listener will process. More requests than this will be queued (the queue in unbounded). Default `10`.
 
-### Other input parameters
+**disabled**
+If set to true (or 1 etc.) no prometheus inputs will function
+
+### Specific input parameters
 
 **bearer_token**
 The token that will identify incoming requests to this input
@@ -109,8 +123,6 @@ In your Prometheus runtime YML file, ensure the following is set:
 ## Known Limitations
 
  - Only Linux on x86_64 is tested for now
- - TLS is not yet supported, and is targeted for future enhancement
- - host, index, sourcetype, whitelist and blacklist set in `[prometheus://default]` do not actually act as defaults -- these currently need to be specified per-input. This will be fixed in a future release.
- - Splunk `host` field is static only. Future releases will allow to set this to the hostname/address of the sending Prometheus server.
- - Validation of configuration is non-existent
+ - TLS is not yet supported, but is targeted for a future enhancement
+ - Validation of configuration is non-existent -- incorrect config will not work with little indication as to why
  - Proper logging of the input execution is not yet implemented
