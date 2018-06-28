@@ -1,8 +1,11 @@
 [prometheus]
-listen_port = <number>
-max_clients = <number>
+port = <number>
+maxClients = <number>
+enableTLS = <0|1>
+certFile = <path>
+keyFile = <path>
 
 [prometheus://<name>]
-bearer_token = <string>
+bearerToken = <string>
 whitelist = <glob pattern>,<glob pattern>,...
 blacklist = <glob pattern>,<glob pattern>,...

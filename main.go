@@ -1,104 +1,110 @@
 package main
 
 import (
-        "fmt"
-        "math"
-        "strings"
-        "io/ioutil"
-        "net/http"
-        "os"
-        "log"
-        "bytes"
-        "encoding/xml"
-        "strconv"
-        "crypto/tls"
+	"bytes"
+	"crypto/tls"
+	"encoding/xml"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
 
-        "github.com/gogo/protobuf/proto"
-        "github.com/golang/snappy"
-        "github.com/prometheus/common/model"
-        "github.com/prometheus/prometheus/prompb"
-        "github.com/gobwas/glob"
+	"github.com/gobwas/glob"
+	"github.com/gogo/protobuf/proto"
+	"github.com/golang/snappy"
+	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 // Structs to hold XML parsing of input from Splunk
 type Input struct {
-  XMLName xml.Name `xml:"input"`
-  ServerHost string `xml:"server_host"`
-  ServerURI string `xml:"server_uri"`
-  SessionKey string `xml:"session_key"`
-  CheckpointDir string `xml:"checkpoint_dir"`
-  Configuration Configuration `xml:"configuration"`
+	XMLName       xml.Name      `xml:"input"`
+	ServerHost    string        `xml:"server_host"`
+	ServerURI     string        `xml:"server_uri"`
+	SessionKey    string        `xml:"session_key"`
+	CheckpointDir string        `xml:"checkpoint_dir"`
+	Configuration Configuration `xml:"configuration"`
 }
 
 type Configuration struct {
-  XMLName xml.Name `xml:"configuration"`
-  Stanzas []Stanza `xml:"stanza"`
+	XMLName xml.Name `xml:"configuration"`
+	Stanzas []Stanza `xml:"stanza"`
 }
 
 type Stanza struct {
-  XMLName xml.Name `xml:"stanza"`
-  Params []Param `xml:"param"`
-  Name string `xml:"name,attr"`
+	XMLName xml.Name `xml:"stanza"`
+	Params  []Param  `xml:"param"`
+	Name    string   `xml:"name,attr"`
 }
 
 type Param struct {
-  XMLName xml.Name `xml:"param"`
-  Name string `xml:"name,attr"`
-  Value string `xml:",chardata"`
+	XMLName xml.Name `xml:"param"`
+	Name    string   `xml:"name,attr"`
+	Value   string   `xml:",chardata"`
 }
 
 type Feed struct {
-  XMLName xml.Name `xml:"feed"`
-  Keys []Key `xml:"entry>content>dict>key"`
+	XMLName xml.Name `xml:"feed"`
+	Keys    []Key    `xml:"entry>content>dict>key"`
 }
 type Key struct {
-  XMLName xml.Name `xml:"key"`
-  Name string `xml:"name,attr"`
-  Value string `xml:",chardata"`
+	XMLName xml.Name `xml:"key"`
+	Name    string   `xml:"name,attr"`
+	Value   string   `xml:",chardata"`
 }
 
 // End XML structs
 
+// Structs store final config
 type InputConfig struct {
-  BearerToken string
-  Whitelist []glob.Glob
-  Blacklist []glob.Glob
-  Index string
-  Sourcetype string
-  Host string
+	BearerToken string
+	Whitelist   []glob.Glob
+	Blacklist   []glob.Glob
+	Index       string
+	Sourcetype  string
+	Host        string
 }
 
 type GlobalConfig struct {
-  ListenAddr string
-  MaxClients int
-  Disabled bool
+	ListenAddr string
+	MaxClients int
+	Disabled   bool
+	EnableTLS  bool
+	CertFile   string
+	KeyFile    string
 }
+
+// End config structs
 
 func main() {
 
-        if len(os.Args) > 1 {
-          if os.Args[1] == "--scheme" {
-            fmt.Println(do_scheme())
-          } else if os.Args[1] == "--validate-arguments" {
-            validate_arguments()
-          }
-        } else {
-          run()
-        }
+	if len(os.Args) > 1 {
+		if os.Args[1] == "--scheme" {
+			fmt.Println(DoScheme())
+		} else if os.Args[1] == "--validate-arguments" {
+			ValidateArguments()
+		}
+	} else {
+		log.Fatal(Run())
+	}
 
-        return
+	return
 }
 
-func do_scheme() string {
+func DoScheme() string {
 
-  scheme := `<scheme>
+	scheme := `<scheme>
       <title>Prometheus Remote Write</title>
       <description>Listen on a TCP port as a remote write endpoint for the Prometheus metrics server</description>
       <use_external_validation>false</use_external_validation>
       <streaming_mode>simple</streaming_mode>
       <use_single_instance>true</use_single_instance>
       <endpoint>
-          <arg name="bearer_token">
+          <arg name="bearerToken">
             <title>Bearer token</title>
             <description>A token configured in Prometheus to send via the Authorization header</description>
             <required_on_edit>true</required_on_edit>
@@ -119,166 +125,208 @@ func do_scheme() string {
       </endpoint>
     </scheme>`
 
-  return scheme
+	return scheme
 }
 
-func validate_arguments() {
-  return
+func ValidateArguments() {
+  // Currently unused
+  // Will be used to properly validate in future
+	return
 }
 
-func run() error {
+func Config() (GlobalConfig, map[string]InputConfig) {
 
-        // Output of metrics are sent to Splunk via log interface
-        // This ensures parallel requests don't interleave, which can happen using stdout directly
-        output := log.New(os.Stdout, "", 0)
+	data, _ := ioutil.ReadAll(os.Stdin)
+	var input Input
+	xml.Unmarshal(data, &input)
 
-        // Actual logging (goes to splunkd.log)
-        //infoLog := log.New(os.Stderr, "INFO ", 0)
-        //debugLog := log.New(os.Stderr, "DEBUG ", 0)
-        //errLog := log.New(os.Stderr, "ERROR ", 0)
+	configMap := make(map[string]InputConfig)
 
-        // Parse arguments
-        data, _ := ioutil.ReadAll(os.Stdin)
-        var input Input
-        xml.Unmarshal(data, &input)
+	for _, s := range input.Configuration.Stanzas {
+		var inputConfig InputConfig
+		for _, p := range s.Params {
+			if p.Name == "whitelist" {
+				for _, w := range strings.Split(p.Value, ",") {
+					inputConfig.Whitelist = append(inputConfig.Whitelist, glob.MustCompile(w))
+				}
+			}
+			if p.Name == "blacklist" {
+				for _, b := range strings.Split(p.Value, ",") {
+					inputConfig.Blacklist = append(inputConfig.Blacklist, glob.MustCompile(b))
+				}
+			}
+			if p.Name == "bearerToken" {
+				inputConfig.BearerToken = p.Value
+			}
+			if p.Name == "index" {
+				inputConfig.Index = p.Value
+			}
+			if p.Name == "sourcetype" {
+				inputConfig.Sourcetype = p.Value
+			}
+			if p.Name == "host" {
+				inputConfig.Host = p.Value
+			}
+		}
 
-        configMap := make(map[string]InputConfig)
+		configMap[inputConfig.BearerToken] = inputConfig
+	}
+	// Default global config
+	var globalConfig GlobalConfig
+	globalConfig.ListenAddr = ":8098"
+	globalConfig.MaxClients = 10
+	globalConfig.Disabled = true
+	globalConfig.EnableTLS = false
 
-        for _, s := range input.Configuration.Stanzas {
-          var inputConfig InputConfig
-          for _, p := range s.Params {
-            if p.Name == "whitelist" {
-              for _, w := range strings.Split(p.Value, ",") {
-                inputConfig.Whitelist = append(inputConfig.Whitelist, glob.MustCompile(w))
-              }
-            }
-            if p.Name == "blacklist" {
-              for _, b := range strings.Split(p.Value, ",") {
-                inputConfig.Blacklist = append(inputConfig.Blacklist, glob.MustCompile(b))
-              }
-            }
-            if p.Name == "bearer_token" { inputConfig.BearerToken = p.Value }
-            if p.Name == "index" { inputConfig.Index = p.Value }
-            if p.Name == "sourcetype" { inputConfig.Sourcetype = p.Value }
-            if p.Name == "host" { inputConfig.Host = p.Value }
-          }
+	// Get the global configuration
+	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	client := &http.Client{Transport: tr}
+	req, error := http.NewRequest("GET", input.ServerURI+"/services/configs/inputs/prometheus", nil)
+	req.Header.Add("Authorization", "Splunk "+input.SessionKey)
+	response, error := client.Do(req)
+	if error != nil {
+		log.Fatal(error)
+	}
+	body, _ := ioutil.ReadAll(response.Body)
 
-          configMap[inputConfig.BearerToken] = inputConfig
-        }
+	// Parse the global configuration
+	var feed Feed
+	xml.Unmarshal(body, &feed)
+	for _, k := range feed.Keys {
+		if k.Name == "disabled" {
+			globalConfig.Disabled, _ = strconv.ParseBool(k.Value)
+		}
+		if k.Name == "port" {
+			port, _ := strconv.Atoi(k.Value)
+			globalConfig.ListenAddr = fmt.Sprintf(":%d", port)
+		}
+		if k.Name == "maxClients" {
+			maxClients, error := strconv.Atoi(k.Value)
+			if error != nil || maxClients <= 0 {
+				globalConfig.MaxClients = 10
+			} else {
+				globalConfig.MaxClients = maxClients
+			}
+		}
+		if k.Name == "enableTLS" {
+			globalConfig.EnableTLS, _ = strconv.ParseBool(k.Value)
+		}
+		if k.Name == "certFile" {
+			globalConfig.CertFile = strings.Replace(k.Value, "$SPLUNK_HOME", os.Getenv("SPLUNK_HOME"), -1)
+		}
+		if k.Name == "keyFile" {
+			globalConfig.KeyFile = strings.Replace(k.Value, "$SPLUNK_HOME", os.Getenv("SPLUNK_HOME"), -1)
+		}
+	}
+	response.Body.Close()
 
-        // Default global config
-        var globalConfig GlobalConfig
-        globalConfig.ListenAddr = ":8098"
-        globalConfig.MaxClients = 10
-        globalConfig.Disabled = true
+	return globalConfig, configMap
+}
 
-        // Get the global configuration
-        tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true},}
-        client := &http.Client{Transport: tr}
-        req, error := http.NewRequest("GET", input.ServerURI+"/services/configs/inputs/prometheus", nil)
-        req.Header.Add("Authorization", "Splunk " + input.SessionKey)
-        response, error := client.Do(req)
-        if (error != nil) {
-          log.Fatal(error)
-        }
-        body, _ := ioutil.ReadAll(response.Body)
+func Run() error {
 
-        // Parse the global configuration
-        var feed Feed
-        xml.Unmarshal(body, &feed)
-        for _, k := range feed.Keys {
-          if k.Name == "disabled" { globalConfig.Disabled, _ = strconv.ParseBool(k.Value) }
-          if k.Name == "listen_port" {
-            port, _ := strconv.Atoi(k.Value)
-            globalConfig.ListenAddr = fmt.Sprintf(":%d", port)
-          }
-          if k.Name == "max_clients" {
-            maxClients, error := strconv.Atoi(k.Value)
-            if error != nil || maxClients <= 0 {
-              globalConfig.MaxClients = 10
-            } else {
-              globalConfig.MaxClients = maxClients
-            }
-          }
-        }
-        response.Body.Close()
+	// Output of metrics are sent to Splunk via log interface
+	// This ensures parallel requests don't interleave, which can happen using stdout directly
+	output := log.New(os.Stdout, "", 0)
 
-        if (globalConfig.Disabled == true) {
-          log.Fatal("Prometheus input globally disabled")
-        }
+	// Actual logging (goes to splunkd.log)
+	//infoLog := log.New(os.Stderr, "INFO ", 0)
+	//debugLog := log.New(os.Stderr, "DEBUG ", 0)
+	errLog := log.New(os.Stderr, "ERROR ", 0)
 
-        // Semaphore to limit to maxClients concurrency
-        sema := make(chan struct{}, globalConfig.MaxClients)
+	globalConfig, configMap := Config()
 
-        http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+  errLog.Println(globalConfig)
 
-                // Get the bearer token and corresponding config
-                bearerToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if globalConfig.Disabled == true {
+		log.Fatal("Prometheus input globally disabled")
+	}
 
-                if _, ok := configMap[bearerToken]; !ok {
-                  http.Error(w, "Bearer token not recognized. Please contact your Splunk admin.", http.StatusUnauthorized)
-                  return
-                }
+	// Semaphore to limit to maxClients concurrency
+	sema := make(chan struct{}, globalConfig.MaxClients)
 
-                inputConfig := configMap[bearerToken]
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
-                // This will queue a client if > maxClients are processing
-                sema <- struct{}{}
-                defer func() { <-sema } ()
+		// Get the bearer token and corresponding config
+		bearerToken := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 
-                // A buffer to build out metrics in for this request
-                // Asynchronously dump to stdout (via logger) at end of request
-                // We dump it all at once, as we may have index/sourcetype etc. directives
-                var buffer bytes.Buffer
+		if _, ok := configMap[bearerToken]; !ok {
+			http.Error(w, "Bearer token not recognized. Please contact your Splunk admin.", http.StatusUnauthorized)
+			return
+		}
 
-                buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
+		inputConfig := configMap[bearerToken]
 
-                compressed, err := ioutil.ReadAll(r.Body)
-                if err != nil {
-                        http.Error(w, err.Error(), http.StatusInternalServerError)
-                        return
-                }
+		// This will queue a client if > maxClients are processing
+		sema <- struct{}{}
+		defer func() { <-sema }()
 
-                reqBuf, err := snappy.Decode(nil, compressed)
-                if err != nil {
-                        http.Error(w, err.Error(), http.StatusBadRequest)
-                        return
-                }
+		// A buffer to build out metrics in for this request
+		// We dump it all at once, as we may have index/sourcetype etc. directives and we can't have them separated from the metrics they effect by another request
+		var buffer bytes.Buffer
 
-                var req prompb.WriteRequest
-                if err := proto.Unmarshal(reqBuf, &req); err != nil {
-                        http.Error(w, err.Error(), http.StatusBadRequest)
-                        return
-                }
-                for _, ts := range req.Timeseries {
-                        m := make(model.Metric, len(ts.Labels))
+		buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
 
-                        for _, l := range ts.Labels {
-                                m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
-                        }
+		compressed, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-                        whitelisted := false
-                        for _, w := range inputConfig.Whitelist {
-                          if (w.Match(string(m["__name__"]))) { whitelisted = true }
-                        }
+		reqBuf, err := snappy.Decode(nil, compressed)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
-                        if !whitelisted { continue }
+		var req prompb.WriteRequest
+		if err := proto.Unmarshal(reqBuf, &req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		for _, ts := range req.Timeseries {
+			m := make(model.Metric, len(ts.Labels))
 
-                        blacklisted := false
-                        for _, b := range inputConfig.Blacklist {
-                          if (b.Match(string(m["__name__"]))) { blacklisted = true }
-                        }
+			for _, l := range ts.Labels {
+				m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+			}
 
-                        if blacklisted { continue }
+			whitelisted := false
+			for _, w := range inputConfig.Whitelist {
+				if w.Match(string(m["__name__"])) {
+					whitelisted = true
+				}
+			}
 
-                        for _, s := range ts.Samples {
-                                if math.IsNaN(s.Value) { continue } // Splunk won't accept NaN metrics
-                                buffer.WriteString(fmt.Sprintf("%d %f %s\n", s.Timestamp, s.Value, m))
-                        }
-                }
+			if !whitelisted {
+				continue
+			}
 
-                output.Print(buffer.String())
-        })
+			blacklisted := false
+			for _, b := range inputConfig.Blacklist {
+				if b.Match(string(m["__name__"])) {
+					blacklisted = true
+				}
+			}
 
-        return http.ListenAndServe(globalConfig.ListenAddr, nil)
+			if blacklisted {
+				continue
+			}
+
+			for _, s := range ts.Samples {
+				if math.IsNaN(s.Value) {
+					continue
+				} // Splunk won't accept NaN metrics
+				buffer.WriteString(fmt.Sprintf("%d %f %s\n", s.Timestamp, s.Value, m))
+			}
+		}
+
+		output.Print(buffer.String())
+	})
+
+	if globalConfig.EnableTLS == true {
+		return http.ListenAndServeTLS(globalConfig.ListenAddr, globalConfig.CertFile, globalConfig.KeyFile, nil)
+	} else {
+		return http.ListenAndServe(globalConfig.ListenAddr, nil)
+	}
 }

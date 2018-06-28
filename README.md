@@ -54,19 +54,19 @@ e.g.
 
 ```
 [prometheus]
-listen_port = 8098
-max_clients = 10
+port = 8098
+maxClients = 10
 disabled = 0
 
 [prometheus://testing]
-bearer_token = ABC123
+bearerToken = ABC123
 index = prometheus
 whitelist = *
 sourcetype = prometheus:metric
 disabled = 0
 
 [prometheus://another]
-bearer_token = DEF456
+bearerToken = DEF456
 index = another_metrics_index
 whitelist = net*
 sourcetype = prometheus:metric
@@ -81,18 +81,27 @@ The input can be configured in Splunk web in the usual place, or in inputs.conf 
 
 These parameters should be set under the [prometheus] stanza.
 
-**listen_port**
+**port**
 The TCP port to listen on. Default 8098.
 
-**max_clients**
+**maxClients**
 The maximum number of simultaneous HTTP requests the listener will process. More requests than this will be queued (the queue in unbounded). Default `10`.
+
+**enableTLS**
+Listen on TLS (i.e. https://<server>:<port>)
+
+**certFile**
+Full path to certFile. $SPLUNK_HOME is respected. Any CA certificate should be contatenated.
+
+**keyFile**
+Full path to keyFile. Passwordless only supported for now. $SPLUNK_HOME is respected.
 
 **disabled**
 If set to true (or 1 etc.) no prometheus inputs will function
 
 ### Specific input parameters
 
-**bearer_token**
+**bearerToken**
 The token that will identify incoming requests to this input
 
 **whitelist**
@@ -120,9 +129,10 @@ In your Prometheus runtime YML file, ensure the following is set:
       bearer_token: "ABC123"
 ```
 
+Full details of available options are at: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_write%3E
+
 ## Known Limitations
 
  - Only Linux on x86_64 is tested for now
- - TLS is not yet supported, but is targeted for a future enhancement
  - Validation of configuration is non-existent -- incorrect config will not work with little indication as to why
- - Proper logging of the input execution is not yet implemented
+ - Proper logging of the input execution is not yet implemented. You may or may get a log entry of any issues.
