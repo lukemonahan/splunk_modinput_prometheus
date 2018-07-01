@@ -10,7 +10,7 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"regexp"
+	"strings"
 
 	"github.com/prometheus/prometheus/pkg/textparse"
 )
@@ -83,6 +83,12 @@ func DoScheme() string {
             <required_on_edit>true</required_on_edit>
             <required_on_create>true</required_on_create>
           </arg>
+					<arg name="match">
+						<title>Match filter</title>
+						<description>A comma-delimited list of Prometheus "match" expressions: only functional and required for /federate endpoints</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
       </endpoint>
     </scheme>`
 
@@ -101,8 +107,6 @@ func Config() InputConfig {
 	var input Input
 	xml.Unmarshal(data, &input)
 
-	var matchExpr = regexp.MustCompile(`^match\.\d+$`)
-
 	var inputConfig InputConfig
 
 	for _, s := range input.Configuration.Stanzas {
@@ -119,8 +123,10 @@ func Config() InputConfig {
 			if p.Name == "host" {
 				inputConfig.Host = p.Value
 			}
-			if matchExpr.MatchString(p.Name) || p.Name == "match" {
-				inputConfig.Match = append(inputConfig.Match, p.Value)
+			if p.Name == "match" {
+				for _, m := range strings.Split(p.Value, ",") {
+					inputConfig.Match = append(inputConfig.Match, m)
+				}
 			}
 		}
 	}
