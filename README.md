@@ -2,6 +2,8 @@
 
 **WARNING**: This is a very early release and has undergone only limited testing. The version will be 1.0 when considered stable and complete.
 
+**DOUBLE WARNING**: Building from Git will currently not match these documents. Latest release (currently 0.4) will match this document.
+
 Prometheus [prometheus.io](https://prometheus.io), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
 
 Splunk [splunk.com](https://www.splunk.com) is a platform for machine data analysis, providing real-time visibility, actionable insights and intelligence across all forms of machine data. Splunk Enterprise since version 7.0 includes the Metrics store for large-scale capture and analysis of time-series metrics alongside log data.
