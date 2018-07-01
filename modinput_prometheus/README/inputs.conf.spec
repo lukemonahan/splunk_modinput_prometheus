@@ -12,4 +12,4 @@ blacklist = <glob pattern>,<glob pattern>,...
 
 [prometheus://<name>]
 URI = <URI>
-match.<number> = <match expression>
+match = <match expression>

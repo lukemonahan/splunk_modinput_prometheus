@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/xml"
 	"fmt"
-	"github.com/prometheus/prometheus/pkg/textparse"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+
+	"github.com/prometheus/prometheus/pkg/textparse"
 )
 
 // Structs to hold XML parsing of input from Splunk
@@ -72,7 +73,7 @@ func DoScheme() string {
 	scheme := `<scheme>
       <title>Prometheus</title>
       <description>Scrapes a Prometheus endpoint, either directly or via Prometheus federation</description>
-      <use_external_validation>false</use_external_validation>
+      <use_external_validation>true</use_external_validation>
       <streaming_mode>simple</streaming_mode>
       <use_single_instance>false</use_single_instance>
       <endpoint>
@@ -118,7 +119,7 @@ func Config() InputConfig {
 			if p.Name == "host" {
 				inputConfig.Host = p.Value
 			}
-			if matchExpr.MatchString(p.Name) {
+			if matchExpr.MatchString(p.Name) || p.Name == "match" {
 				inputConfig.Match = append(inputConfig.Match, p.Value)
 			}
 		}
@@ -129,17 +130,7 @@ func Config() InputConfig {
 
 func Run() {
 
-	// Output of metrics are sent to Splunk via log interface
-	// This ensures parallel requests don't interleave, which can happen using stdout directly
-	output := log.New(os.Stdout, "", 0)
-
 	var inputConfig = Config()
-
-	// A buffer to build out metrics in for this request
-	// We dump it all at once, as we may have index/sourcetype etc. directives and we can't have them separated from the metrics they effect by another request
-	var buffer bytes.Buffer
-
-	buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
 
 	client := &http.Client{}
 
@@ -168,6 +159,10 @@ func Run() {
 		log.Fatal(err)
 	}
 
+	// Output buffer
+	output := bufio.NewWriter(os.Stdout)
+	defer output.Flush()
+
 	// Need to parse metrics out of body individually to convert from scientific to decimal etc. before handing to Splunk
 	p := textparse.New(body)
 
@@ -189,12 +184,9 @@ func Run() {
 			if math.IsNaN(val) || math.IsInf(val, 0) {
 				continue
 			} // Splunk won't accept NaN metrics etc.
-			buffer.WriteString(fmt.Sprintf("%s %f %d\n", b, val, ts))
-
+			output.WriteString(fmt.Sprintf("%s %f %d\n", b, val, *ts))
 		}
 	}
-
-	output.Print(buffer.String())
 
 	return
 }
