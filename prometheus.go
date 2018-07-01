@@ -1,17 +1,17 @@
 package main
 
 import (
-  "bytes"
+	"bytes"
 	"encoding/xml"
 	"fmt"
+	"github.com/prometheus/prometheus/pkg/textparse"
+	"io"
 	"io/ioutil"
-  "io"
-  "os"
 	"log"
+	"math"
 	"net/http"
-  "math"
-  "regexp"
-  "github.com/prometheus/prometheus/pkg/textparse"
+	"os"
+	"regexp"
 )
 
 // Structs to hold XML parsing of input from Splunk
@@ -40,15 +40,16 @@ type Param struct {
 	Name    string   `xml:"name,attr"`
 	Value   string   `xml:",chardata"`
 }
+
 // End XML structs
 
 // Struct to store final config
 type InputConfig struct {
-  URI         string
-  Match       []string
-	Index       string
-	Sourcetype  string
-	Host        string
+	URI        string
+	Match      []string
+	Index      string
+	Sourcetype string
+	Host       string
 }
 
 func main() {
@@ -88,8 +89,8 @@ func DoScheme() string {
 }
 
 func ValidateArguments() {
-  // Currently unused
-  // Will be used to properly validate in future
+	// Currently unused
+	// Will be used to properly validate in future
 	return
 }
 
@@ -99,9 +100,9 @@ func Config() InputConfig {
 	var input Input
 	xml.Unmarshal(data, &input)
 
-  var matchExpr = regexp.MustCompile(`^match\.\d+$`)
+	var matchExpr = regexp.MustCompile(`^match\.\d+$`)
 
-  var inputConfig InputConfig
+	var inputConfig InputConfig
 
 	for _, s := range input.Configuration.Stanzas {
 		for _, p := range s.Params {
@@ -117,84 +118,83 @@ func Config() InputConfig {
 			if p.Name == "host" {
 				inputConfig.Host = p.Value
 			}
-      if matchExpr.MatchString(p.Name) {
-        inputConfig.Match = append(inputConfig.Match, p.Value)
-      }
+			if matchExpr.MatchString(p.Name) {
+				inputConfig.Match = append(inputConfig.Match, p.Value)
+			}
 		}
 	}
 
-  return inputConfig
+	return inputConfig
 }
 
 func Run() {
 
-  // Output of metrics are sent to Splunk via log interface
-  // This ensures parallel requests don't interleave, which can happen using stdout directly
-  output := log.New(os.Stdout, "", 0)
+	// Output of metrics are sent to Splunk via log interface
+	// This ensures parallel requests don't interleave, which can happen using stdout directly
+	output := log.New(os.Stdout, "", 0)
 
-  var inputConfig = Config()
+	var inputConfig = Config()
 
-  // A buffer to build out metrics in for this request
-  // We dump it all at once, as we may have index/sourcetype etc. directives and we can't have them separated from the metrics they effect by another request
-  var buffer bytes.Buffer
+	// A buffer to build out metrics in for this request
+	// We dump it all at once, as we may have index/sourcetype etc. directives and we can't have them separated from the metrics they effect by another request
+	var buffer bytes.Buffer
 
-  buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
+	buffer.WriteString(fmt.Sprintf("***SPLUNK*** index=%s sourcetype=%s host=%s\n", inputConfig.Index, inputConfig.Sourcetype, inputConfig.Host))
 
-  client := &http.Client{}
+	client := &http.Client{}
 
-  req, err := http.NewRequest("GET", inputConfig.URI, nil)
+	req, err := http.NewRequest("GET", inputConfig.URI, nil)
 
-  if err != nil {
-    log.Fatal(err)
-  }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-  q := req.URL.Query()
-  for _, m := range inputConfig.Match {
-    q.Add("match[]", m)
-  }
-  req.URL.RawQuery = q.Encode()
+	q := req.URL.Query()
+	for _, m := range inputConfig.Match {
+		q.Add("match[]", m)
+	}
+	req.URL.RawQuery = q.Encode()
 
-  resp, err := client.Do(req)
+	resp, err := client.Do(req)
 
-  if err != nil {
-    log.Fatal(err)
-  }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-  defer resp.Body.Close()
-  body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 
-  if err != nil {
-    log.Fatal(err)
-  }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-  // Need to parse metrics out of body individually to convert from scientific to decimal etc. before handing to Splunk
-  p := textparse.New(body)
+	// Need to parse metrics out of body individually to convert from scientific to decimal etc. before handing to Splunk
+	p := textparse.New(body)
 
+	for {
+		et, err := p.Next()
 
-  for  {
-      et, err := p.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				continue
+			}
+		}
 
-      if err != nil {
-        if err == io.EOF {
-          break
-        } else {
-          continue
-        }
-      }
+		// Only care about the actual metric series in Splunk for now
+		if et == textparse.EntrySeries {
+			b, ts, val := p.Series()
 
-      // Only care about the actual metric series in Splunk for now
-      if et == textparse.EntrySeries {
-        b, ts, val := p.Series()
+			if math.IsNaN(val) || math.IsInf(val, 0) {
+				continue
+			} // Splunk won't accept NaN metrics etc.
+			buffer.WriteString(fmt.Sprintf("%s %f %d\n", b, val, ts))
 
-        if math.IsNaN(val) || math.IsInf(val, 0) {
-					continue
-				} // Splunk won't accept NaN metrics etc.
-				buffer.WriteString(fmt.Sprintf("%s %f %d\n", b, val, ts))
+		}
+	}
 
-      }
-  }
+	output.Print(buffer.String())
 
-  output.Print(buffer.String())
-
-  return
+	return
 }
