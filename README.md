@@ -108,7 +108,7 @@ This add-on is installed just like any Splunk app: either through the web UI, de
 
 We recommend installing on a heavy forwarder, so the processing of events into metrics occurs at the collection point and not on indexers. The app is only tested on a heavy instance so far, but if you use a Universal Forwarder be sure to also install on your HFs/Indexers as there are index-time transforms to process the received metrics.
 
-All available parameters are described in inputs.conf.spec.
+All available parameters are described in [inputs.conf.spec](https://github.com/ltmon/splunk_modinput_prometheus/blob/master/modinput_prometheus/README/inputs.conf.spec)
 
 ### Static exporter
 
@@ -130,7 +130,7 @@ The index should be a "metrics" type index. The sourcetype should be prometheus:
 
 ### Federate server
 
-This configuration is to gather all metrics from a Prometheus server. The "match" string here matches all metrics, but you can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+This configuration is to gather all metrics from a Prometheus server. At least one valid "match" must be supplied. They are entered with comma separation in the Splunk configuration. The "match" string given here matches all metrics. You can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
 
 ```
 [prometheus://prom-server-1]
@@ -172,9 +172,9 @@ disabled = 0
 
 This starts the HTTP listener on port 8098, and any metrics coming in with a bearer token of "ABC123" will be directed to the "testing" input. Not including a bearer token will result in a HTTP 401 (Unauthorized).
 
-Although this configuration does allow some basic whitelist and blacklist behaviour within Splunk, it will be more efficient to do this on the Prometheus server using write_relabel_configs. An example is shown below.
+Although this input does allow some basic whitelist and blacklist behaviour against the metric name before ingesting in Splunk, it will be more efficient and flexible to do this on the Prometheus server using write_relabel_configs. An example is shown in the configuration below.
 
-In your Prometheus runtime YML file, ensure the following is set:
+In your Prometheus runtime YML file, ensure the following is set to start sending metrics to the prometheusrw Splunk input:
 
 ```yaml
   remote_write:
@@ -186,7 +186,7 @@ In your Prometheus runtime YML file, ensure the following is set:
           action:        drop
 ```
 
-Full details of available options are at: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_write%3E
+Full details of available Prometheus options are at: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#%3Cremote_write%3E
 
 ## Known Limitations
 
