@@ -26,10 +26,14 @@ It has been designed to mimic the Splunk HTTP Event Collector from a configurati
 
 ### Static exporter
 In this configuration, the modular input can poll any statically configured Prometheus exporter at a defined interval.
+
 Pros:
+
  - Simple
  - Requires no Prometheus server
+
 Cons:
+
  - Static configuration only -- no service discovery
  - HA of Splunk polling is difficult
 
@@ -37,11 +41,15 @@ Cons:
 
 ### Federate server
 With this configuration, the modular input is polling a Prometheus server that is federating the metrics from either exporters or other Prometheus servers.
+
 Pros:
+
  - Allows Prometheus to handle service discovery and other low-level functions
- - High level of control of what Splunk gathers and when
+ - High level of control of what Splunk gathers and when using interval and match vectors
  - Allows scenarios such as using Prometheus to gather high-resolution metrics, and gathering into Splunk at reduced frequency
+
 Cons:
+
  - HA of Splunk polling is difficult
  - Could run into scalability issues if you want to gather large numbers of metrics from a single Prometheus server at a high rate
 
@@ -49,11 +57,16 @@ Cons:
 
 ### Prometheus remote-write
 With this configuration, Prometheus pushes metrics to Splunk with it's remote_write functionality.
+
 Pros:
+
  - Most efficient way to ingest all, or nearly all, metrics from a Prometheus server into Splunk
  - HA and scaling of Splunk achievable with HTTP load balancers
+
 Cons:
- - Must send to Splunk with same frequency as metrics are gathered into Prometheus
+
+ - Must send metrics to Splunk with same frequency as they are gathered into Prometheus
+ - Probably not the best choice unless you want to send almost all Prometheus metrics to Splunk
 
 ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/overview.png)
 
