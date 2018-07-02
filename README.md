@@ -149,7 +149,7 @@ whitelist = *
 sourcetype = prometheus:metric
 disabled = 0
 
-[prometheus://another]
+[prometheusrw://another]
 bearerToken = DEF456
 index = another_metrics_index
 whitelist = net*
