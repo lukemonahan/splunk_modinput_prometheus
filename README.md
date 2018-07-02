@@ -108,7 +108,7 @@ This add-on is installed just like any Splunk app: either through the web UI, de
 
 We recommend installing on a heavy forwarder, so the processing of events into metrics occurs at the collection point and not on indexers. The app is only tested on a heavy instance so far, but if you use a Universal Forwarder be sure to also install on your HFs/Indexers as there are index-time transforms to process the received metrics.
 
-All available parameters are described in [inputs.conf.spec](https://github.com/ltmon/splunk_modinput_prometheus/blob/master/modinput_prometheus/README/inputs.conf.spec)
+All available parameters are described in [inputs.conf.spec](https://github.com/ltmon/splunk_modinput_prometheus/blob/master/modinput_prometheus/README/inputs.conf.spec).
 
 ### Static exporter
 
@@ -193,3 +193,4 @@ Full details of available Prometheus options are at: https://prometheus.io/docs/
  - Only Linux on x86_64 is tested for now
  - Validation of configuration is non-existent -- incorrect config will not work with little indication as to why
  - Proper logging of the input execution is not yet implemented. You may or may get a log entry of any issues currently.
+ - Only some basic HTTP options are supported: no support for Authorization or anything beyond basic TLS options at this time
