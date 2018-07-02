@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/prometheus/pkg/textparse"
@@ -48,6 +50,7 @@ type Param struct {
 type InputConfig struct {
 	URI        string
 	Match      []string
+	InsecureSkipVerify bool
 	Index      string
 	Sourcetype string
 	Host       string
@@ -89,6 +92,12 @@ func DoScheme() string {
 						<required_on_edit>false</required_on_edit>
 						<required_on_create>false</required_on_create>
 					</arg>
+					<arg name="insecureSkipVerify">
+						<title>Skip certificate verification</title>
+						<description>If the endpoint is HTTPS, this setting controls whether to skip verification of the server certificate or not</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
       </endpoint>
     </scheme>`
 
@@ -114,6 +123,9 @@ func Config() InputConfig {
 			if p.Name == "URI" {
 				inputConfig.URI = p.Value
 			}
+			if p.Name == "insecureSkipVerify" {
+				inputConfig.InsecureSkipVerify, _ = strconv.ParseBool(p.Value)
+			}
 			if p.Name == "index" {
 				inputConfig.Index = p.Value
 			}
@@ -138,7 +150,11 @@ func Run() {
 
 	var inputConfig = Config()
 
-	client := &http.Client{}
+	tr := &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
+  }
+
+	client := &http.Client{Transport: tr}
 
 	req, err := http.NewRequest("GET", inputConfig.URI, nil)
 
