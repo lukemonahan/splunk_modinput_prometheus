@@ -9,3 +9,7 @@ prometheusrw: prometheusrw.go
 prometheus: prometheus.go
 	go build prometheus.go
 	mv prometheus modinput_prometheus/linux_x86_64/bin/
+
+package:
+	make build
+	tar cvfz modinput_prometheus.tar.gz modinput_prometheus
