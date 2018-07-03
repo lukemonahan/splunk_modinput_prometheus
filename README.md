@@ -6,21 +6,31 @@ Prometheus [prometheus.io](https://prometheus.io), a [Cloud Native Computing Fou
 
 Splunk [splunk.com](https://www.splunk.com) is a platform for machine data analysis, providing real-time visibility, actionable insights and intelligence across all forms of machine data. Splunk Enterprise since version 7.0 includes the Metrics store for large-scale capture and analysis of time-series metrics alongside log data.
 
-This Splunk add-on provides two modular inputs to create Splunk metrics from Prometheus data:
+This Splunk add-on provides two modular inputs to ingest Splunk metrics from Prometheus:
 
 **[prometheus://]**
 
-A scraping input which polls a Prometheus exporter and indexes all found metrics as Splunk metrics.
+A scraping input which polls a Prometheus exporter and indexes all exposed metrics in Splunk.
 
-It is specifically also designed to be able to poll a Prometheus server's "federate" endpoint, so that Prometheus can be responsible for all the nitty-gritty (e.g. service discovery and label rewriting) and Splunk can gather a desired set of metrics from Prometheus at the desired resolution. In this way it acts much like Prometheus hierarchical federation.
+It is also designed to be able to poll a Prometheus servers "/federate" endpoint, so that Prometheus can be responsible for all the metrics gathering details (e.g. service discovery and label rewriting) and Splunk can easily ingest a desired subset of metrics from Prometheus at the desired resolution. In this way it acts much like Prometheus hierarchical federation.
 
-It will also succesfully scrape a basic static Prometheus exporter, and in this use case does not require a Prometheus server at all.
+It will also successfully scrape a statically configured Prometheus exporter, and for this use case does not require a Prometheus server at all.
 
 **[prometheusrw://]**
 
-A bridge so that the Prometheus remote-write feature can continuously deliver metrics to a Splunk Enterprise system for long-term storage, analysis and integration with other data sources in Splunk. It is structured as a Splunk app that provides a modular input implementing the remote-write bridge. When installed and enabled, this add-on will add a new listening port to your Splunk server which can be the target for multiple Prometheus servers remote write.
+A bridge so that the Prometheus remote-write feature can continuously push metrics to a Splunk Enterprise system. When installed and enabled, this input will add a new listening port to your Splunk server which can be the remote write target for multiple Prometheus servers.
 
-It has been designed to mimic the Splunk HTTP Event Collector from a configuration standpoint, however the endpoint is much simpler as it only support Prometheus remote-write. The HEC is not used as Prometheus remote-write requires Speedy compression and Protocol Buffer encoding, both of which do not work with the HEC.
+It has been designed to mimic the Splunk HTTP Event Collector for it's configuration, however the endpoint is much simpler as it only supports Prometheus remote-write. The HEC is not used for this as Prometheus remote-write requires Speedy compression and Protocol Buffer encoding, both of which do not work with the HEC.
+
+## Requirements
+
+ - Splunk 7.x
+ - Prometheus 2.x
+ - Recent Linux x64
+
+ The most testing has been performed on Splunk 7.1.1 and Prometheus 2.3.1 on Fedora 28.
+
+ Splunk 6 users could likely use these inputs, by changing the included sourcetypes to not write the metrics metadata. This isn't tested and will not be a focus of the authors.
 
 ## Architecture overview
 
@@ -34,19 +44,19 @@ Pros:
 
 Cons:
 
- - Static configuration only -- no service discovery
+ - Static configuration only -- very manual to add lots of systems
  - HA of Splunk polling is difficult
 
 ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_simple.png)
 
 ### Federate server
-With this configuration, the modular input is polling a Prometheus server that is federating the metrics from either exporters or other Prometheus servers.
+With this configuration, the modular input is setup to poll a Prometheus server that is exposing the metrics from exporters and other Prometheus servers on it's federate endpoint.
 
 Pros:
 
  - Allows Prometheus to handle service discovery and other low-level functions
- - High level of control of what Splunk gathers and when using interval and match vectors
- - Allows scenarios such as using Prometheus to gather high-resolution metrics, and gathering into Splunk at reduced frequency
+ - High level of control of what Splunk gathers and when using polling interval and match vectors
+ - Allows scenarios such as using Prometheus to gather high-resolution metrics, and ingesting into Splunk at reduced frequency
 
 Cons:
 
@@ -61,17 +71,16 @@ With this configuration, Prometheus pushes metrics to Splunk with it's remote_wr
 Pros:
 
  - Most efficient way to ingest all, or nearly all, metrics from a Prometheus server into Splunk
- - HA and scaling of Splunk achievable with HTTP load balancers
+ - HA and scaling of Splunk ingestion is achievable with HTTP load balancers
 
 Cons:
 
  - Must send metrics to Splunk with same frequency as they are gathered into Prometheus
- - Probably not the best choice unless you want to send almost all Prometheus metrics to Splunk
 
 ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_remotewrite.png)
 
 ### Hybrid
-All metrics gathered by the above methods are in a consistent format in Splunk, and reporting over them will be no different. Because of this, different ways of delivering metrics for different use cases could be implemented.
+All metrics gathered by the above methods are in a consistent format in Splunk, and reporting over them will be no different no matter how they are gathered. Because of this, different ways of delivering metrics for different use cases could be implemented.
 
 ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_hybrid.png)
 
@@ -96,7 +105,7 @@ $ go get github.com/gobwas/glob
 $ go get github.com/prometheus/prometheus/pkg/textparse
 ```
 
-The "build" make target will build the modular input binaries, and copy tem into the correct place in `modinput_prometheus`, which forms the root of the Splunk app.
+The "build" make target will build the modular input binaries, and copy them into the correct place in `modinput_prometheus`, which forms the root of the Splunk app.
 
 ```
 $ make build
@@ -108,11 +117,11 @@ This add-on is installed just like any Splunk app: either through the web UI, de
 
 We recommend installing on a heavy forwarder, so the processing of events into metrics occurs at the collection point and not on indexers. The app is only tested on a heavy instance so far, but if you use a Universal Forwarder be sure to also install on your HFs/Indexers as there are index-time transforms to process the received metrics.
 
-All available parameters are described in [inputs.conf.spec](https://github.com/ltmon/splunk_modinput_prometheus/blob/master/modinput_prometheus/README/inputs.conf.spec).
+All available parameters for the modular inputs are described in [inputs.conf.spec](https://github.com/ltmon/splunk_modinput_prometheus/blob/master/modinput_prometheus/README/inputs.conf.spec).
 
 ### Static exporter
 
-The most basic configuration will be to poll a Prometheus exporter.
+The most basic configuration to poll a Prometheus exporter.
 
 e.g.
 
@@ -130,7 +139,7 @@ The index should be a "metrics" type index. The sourcetype should be prometheus:
 
 ### Federate server
 
-This configuration is to gather all metrics from a Prometheus server. At least one valid "match" must be supplied. They are entered with comma separation in the Splunk configuration. The "match" string given here matches all metrics. You can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+This configuration is to gather all metrics from a Prometheus server. At least one valid "match" must be supplied in order to get any data from a Prometheus federation endpoint. Eatch "match" is entered with comma separation in the Splunk configuration. The example "match" string given here matches all metrics. You can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
 
 ```
 [prometheus://prom-server-1]
@@ -145,7 +154,7 @@ disabled = 0
 
 ### Promtheus remote-write
 
-Multiple input stanzas are required, but only one HTTP server is ever run. The individual inputs are distinguished by bearer tokens. A special `[prometheus]` sets up the HTTP server, and any other named input configures the specifics for that input itself.
+Only one HTTP server is ever run, which is configured by the `[prometheusrw]` input stanza. The individual inputs are then distinguished by bearer tokens. At least one of the individual inputs must be configured, and a matching bearer token must be supplied from Prometheus in order to direct the received metrics to that input.
 
 e.g.
 
@@ -170,9 +179,11 @@ sourcetype = prometheus:metric
 disabled = 0
 ```
 
-This starts the HTTP listener on port 8098, and any metrics coming in with a bearer token of "ABC123" will be directed to the "testing" input. Not including a bearer token will result in a HTTP 401 (Unauthorized).
+This starts the HTTP listener on port 8098, and any metrics coming in with a bearer token of "ABC123" will be directed to the "testing" input, wheras any received with a bearer token of "DEF456" will be directed to the "another" input. Not including a bearer token, or a non-matching token, will result in a HTTP 401 (Unauthorized).
 
-Although this input does allow some basic whitelist and blacklist behaviour against the metric name before ingesting in Splunk, it will be more efficient and flexible to do this on the Prometheus server using write_relabel_configs. An example is shown in the configuration below.
+At least one whitelist should be supplied, and a blacklist is also available. Whitelist and blacklist are comma-separated globs that match against an incoming metric name.
+
+Although the input does allow some basic whitelist and blacklist behaviour against the metric name before ingesting in Splunk, it will be more efficient and flexible to do this on the Prometheus server using write_relabel_configs if that is possible. An example of dropping metrics withis way is shown in the configuration below.
 
 In your Prometheus runtime YML file, ensure the following is set to start sending metrics to the prometheusrw Splunk input:
 
@@ -191,6 +202,6 @@ Full details of available Prometheus options are at: https://prometheus.io/docs/
 ## Known Limitations
 
  - Only Linux on x86_64 is tested for now
- - Validation of configuration is non-existent -- incorrect config will not work with little indication as to why
+ - Validation of configuration is non-existent -- incorrect configuration will not work with little indication as to why
  - Proper logging of the input execution is not yet implemented. You may or may get a log entry of any issues currently.
  - Only some basic HTTP options are supported: no support for Authorization or anything beyond basic TLS options at this time
