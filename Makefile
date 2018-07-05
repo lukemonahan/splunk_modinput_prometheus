@@ -13,3 +13,9 @@ prometheus: prometheus.go
 package:
 	make build
 	tar cvfz modinput_prometheus.tar.gz modinput_prometheus
+
+# To use the validate taget, install a Python venv in this directory, and install splunk-appinspect within it
+# http://dev.splunk.com/view/appinspect/SP-CAAAFAW#installinvirtualenv
+validate:
+	make package
+	bash -c 'source venv/bin/activate && splunk-appinspect inspect ./modinput_prometheus.tar.gz'
