@@ -18,27 +18,27 @@ import (
 )
 
 // Structs to hold XML parsing of input from Splunk
-type Input struct {
+type input struct {
 	XMLName       xml.Name      `xml:"input"`
 	ServerHost    string        `xml:"server_host"`
 	ServerURI     string        `xml:"server_uri"`
 	SessionKey    string        `xml:"session_key"`
 	CheckpointDir string        `xml:"checkpoint_dir"`
-	Configuration Configuration `xml:"configuration"`
+	Configuration configuration `xml:"configuration"`
 }
 
-type Configuration struct {
+type configuration struct {
 	XMLName xml.Name `xml:"configuration"`
-	Stanzas []Stanza `xml:"stanza"`
+	Stanzas []stanza `xml:"stanza"`
 }
 
-type Stanza struct {
+type stanza struct {
 	XMLName xml.Name `xml:"stanza"`
-	Params  []Param  `xml:"param"`
+	Params  []param  `xml:"param"`
 	Name    string   `xml:"name,attr"`
 }
 
-type Param struct {
+type param struct {
 	XMLName xml.Name `xml:"param"`
 	Name    string   `xml:"name,attr"`
 	Value   string   `xml:",chardata"`
@@ -47,7 +47,7 @@ type Param struct {
 // End XML structs
 
 // Struct to store final config
-type InputConfig struct {
+type inputConfig struct {
 	URI        string
 	Match      []string
 	InsecureSkipVerify bool
@@ -60,18 +60,18 @@ func main() {
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "--scheme" {
-			fmt.Println(DoScheme())
+			fmt.Println(doScheme())
 		} else if os.Args[1] == "--validate-arguments" {
-			ValidateArguments()
+			validateArguments()
 		}
 	} else {
-		Run()
+		run()
 	}
 
 	return
 }
 
-func DoScheme() string {
+func doScheme() string {
 
 	scheme := `<scheme>
       <title>Prometheus</title>
@@ -104,19 +104,19 @@ func DoScheme() string {
 	return scheme
 }
 
-func ValidateArguments() {
+func validateArguments() {
 	// Currently unused
 	// Will be used to properly validate in future
 	return
 }
 
-func Config() InputConfig {
+func config() inputConfig {
 
 	data, _ := ioutil.ReadAll(os.Stdin)
-	var input Input
+	var input input
 	xml.Unmarshal(data, &input)
 
-	var inputConfig InputConfig
+	var inputConfig inputConfig
 
 	for _, s := range input.Configuration.Stanzas {
 		for _, p := range s.Params {
@@ -146,9 +146,9 @@ func Config() InputConfig {
 	return inputConfig
 }
 
-func Run() {
+func run() {
 
-	var inputConfig = Config()
+	var inputConfig = config()
 
 	tr := &http.Transport{
         TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},

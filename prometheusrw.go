@@ -21,37 +21,37 @@ import (
 )
 
 // Structs to hold XML parsing of input from Splunk
-type Input struct {
+type input struct {
 	XMLName       xml.Name      `xml:"input"`
 	ServerHost    string        `xml:"server_host"`
 	ServerURI     string        `xml:"server_uri"`
 	SessionKey    string        `xml:"session_key"`
 	CheckpointDir string        `xml:"checkpoint_dir"`
-	Configuration Configuration `xml:"configuration"`
+	Configuration configuration `xml:"configuration"`
 }
 
-type Configuration struct {
+type configuration struct {
 	XMLName xml.Name `xml:"configuration"`
-	Stanzas []Stanza `xml:"stanza"`
+	Stanzas []stanza `xml:"stanza"`
 }
 
-type Stanza struct {
+type stanza struct {
 	XMLName xml.Name `xml:"stanza"`
-	Params  []Param  `xml:"param"`
+	Params  []param  `xml:"param"`
 	Name    string   `xml:"name,attr"`
 }
 
-type Param struct {
+type param struct {
 	XMLName xml.Name `xml:"param"`
 	Name    string   `xml:"name,attr"`
 	Value   string   `xml:",chardata"`
 }
 
-type Feed struct {
+type feed struct {
 	XMLName xml.Name `xml:"feed"`
-	Keys    []Key    `xml:"entry>content>dict>key"`
+	Keys    []key    `xml:"entry>content>dict>key"`
 }
-type Key struct {
+type key struct {
 	XMLName xml.Name `xml:"key"`
 	Name    string   `xml:"name,attr"`
 	Value   string   `xml:",chardata"`
@@ -60,7 +60,7 @@ type Key struct {
 // End XML structs
 
 // Structs store final config
-type InputConfig struct {
+type inputConfig struct {
 	BearerToken string
 	Whitelist   []glob.Glob
 	Blacklist   []glob.Glob
@@ -69,7 +69,7 @@ type InputConfig struct {
 	Host        string
 }
 
-type GlobalConfig struct {
+type globalConfig struct {
 	ListenAddr string
 	MaxClients int
 	Disabled   bool
@@ -84,18 +84,18 @@ func main() {
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "--scheme" {
-			fmt.Println(DoScheme())
+			fmt.Println(doScheme())
 		} else if os.Args[1] == "--validate-arguments" {
-			ValidateArguments()
+			validateArguments()
 		}
 	} else {
-		log.Fatal(Run())
+		log.Fatal(run())
 	}
 
 	return
 }
 
-func DoScheme() string {
+func doScheme() string {
 
 	scheme := `<scheme>
       <title>Prometheus Remote Write</title>
@@ -128,30 +128,30 @@ func DoScheme() string {
 	return scheme
 }
 
-func ValidateArguments() {
+func validateArguments() {
   // Currently unused
   // Will be used to properly validate in future
 	return
 }
 
-func Config() (GlobalConfig, map[string]InputConfig) {
+func config() (globalConfig, map[string]inputConfig) {
 
 	data, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var input Input
+	var input input
 	err = xml.Unmarshal(data, &input)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	configMap := make(map[string]InputConfig)
+	configMap := make(map[string]inputConfig)
 
 	for _, s := range input.Configuration.Stanzas {
-		var inputConfig InputConfig
+		var inputConfig inputConfig
 		for _, p := range s.Params {
 			if p.Name == "whitelist" {
 				for _, w := range strings.Split(p.Value, ",") {
@@ -180,7 +180,7 @@ func Config() (GlobalConfig, map[string]InputConfig) {
 		configMap[inputConfig.BearerToken] = inputConfig
 	}
 	// Default global config
-	var globalConfig GlobalConfig
+	var globalConfig globalConfig
 	globalConfig.ListenAddr = ":8098"
 	globalConfig.MaxClients = 10
 	globalConfig.Disabled = true
@@ -206,7 +206,7 @@ func Config() (GlobalConfig, map[string]InputConfig) {
 	}
 
 	// Parse the global configuration
-	var feed Feed
+	var feed feed
 	xml.Unmarshal(body, &feed)
 	for _, k := range feed.Keys {
 		if k.Name == "disabled" {
@@ -239,7 +239,7 @@ func Config() (GlobalConfig, map[string]InputConfig) {
 	return globalConfig, configMap
 }
 
-func Run() error {
+func run() error {
 
 	// Output of metrics are sent to Splunk via log interface
 	// This ensures parallel requests don't interleave, which can happen using stdout directly
@@ -250,7 +250,7 @@ func Run() error {
 	//debugLog := log.New(os.Stderr, "DEBUG ", 0)
 	//errLog := log.New(os.Stderr, "ERROR ", 0)
 
-	globalConfig, configMap := Config()
+	globalConfig, configMap := config()
 
 	if globalConfig.Disabled == true {
 		log.Fatal("Prometheus input globally disabled")
