@@ -136,9 +136,18 @@ func ValidateArguments() {
 
 func Config() (GlobalConfig, map[string]InputConfig) {
 
-	data, _ := ioutil.ReadAll(os.Stdin)
+	data, err := ioutil.ReadAll(os.Stdin)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	var input Input
-	xml.Unmarshal(data, &input)
+	err = xml.Unmarshal(data, &input)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	configMap := make(map[string]InputConfig)
 
@@ -181,13 +190,21 @@ func Config() (GlobalConfig, map[string]InputConfig) {
 	// Get the global configuration
 	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	client := &http.Client{Transport: tr}
-	req, error := http.NewRequest("GET", input.ServerURI+"/services/configs/inputs/prometheusrw", nil)
+	req, err := http.NewRequest("GET", input.ServerURI+"/services/configs/inputs/prometheusrw", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	req.Header.Add("Authorization", "Splunk "+input.SessionKey)
-	response, error := client.Do(req)
-	if error != nil {
+	response, err := client.Do(req)
+	if err != nil {
 		log.Fatal(error)
 	}
-	body, _ := ioutil.ReadAll(response.Body)
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(error)
+	}
 
 	// Parse the global configuration
 	var feed Feed
