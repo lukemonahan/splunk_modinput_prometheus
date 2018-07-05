@@ -137,7 +137,6 @@ func ValidateArguments() {
 func Config() (GlobalConfig, map[string]InputConfig) {
 
 	data, err := ioutil.ReadAll(os.Stdin)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -198,12 +197,12 @@ func Config() (GlobalConfig, map[string]InputConfig) {
 	req.Header.Add("Authorization", "Splunk "+input.SessionKey)
 	response, err := client.Do(req)
 	if err != nil {
-		log.Fatal(error)
+		log.Fatal(err)
 	}
 
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(error)
+		log.Fatal(err)
 	}
 
 	// Parse the global configuration
