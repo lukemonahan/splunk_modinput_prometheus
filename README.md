@@ -47,7 +47,7 @@ Cons:
  - Static configuration only -- very manual to add lots of systems
  - HA of Splunk polling is difficult
 
-![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_simple.png)
+![](https://raw.githubusercontent.com/lukemonahan/splunk_modinput_prometheus/master/arch_simple.png)
 
 ### Federate server
 With this configuration, the modular input is setup to poll a Prometheus server that is exposing the metrics from exporters and other Prometheus servers on it's federate endpoint.
@@ -63,7 +63,7 @@ Cons:
  - HA of Splunk polling is difficult
  - Could run into scalability issues if you want to gather large numbers of metrics from a single Prometheus server at a high rate
 
- ![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_federate.png)
+ ![](https://raw.githubusercontent.com/lukemonahan/splunk_modinput_prometheus/master/arch_federate.png)
 
 ### Prometheus remote-write
 With this configuration, Prometheus pushes metrics to Splunk with it's remote_write functionality.
@@ -77,7 +77,7 @@ Cons:
 
  - Must send metrics to Splunk with same frequency as they are gathered into Prometheus
 
-![](https://raw.githubusercontent.com/ltmon/splunk_modinput_prometheus/master/arch_remotewrite.png)
+![](https://raw.githubusercontent.com/lukemonahan/splunk_modinput_prometheus/master/arch_remotewrite.png)
 
 ### Hybrid
 All metrics gathered by the above methods are in a consistent format in Splunk, and reporting over them will be no different no matter how they are gathered. Because of this, different ways of delivering metrics for different use cases could be implemented.
