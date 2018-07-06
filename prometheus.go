@@ -13,6 +13,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/prometheus/pkg/textparse"
 )
@@ -76,7 +77,7 @@ func doScheme() string {
 	scheme := `<scheme>
       <title>Prometheus</title>
       <description>Scrapes a Prometheus endpoint, either directly or via Prometheus federation</description>
-      <use_external_validation>true</use_external_validation>
+      <use_external_validation>false</use_external_validation>
       <streaming_mode>simple</streaming_mode>
       <use_single_instance>false</use_single_instance>
       <endpoint>
@@ -168,6 +169,9 @@ func run() {
 	}
 	req.URL.RawQuery = q.Encode()
 
+	// Current timestamp in millis, used if response has no timestamps
+	now := time.Now().UnixNano() / int64(time.Millisecond)
+
 	resp, err := client.Do(req)
 
 	if err != nil {
@@ -203,10 +207,14 @@ func run() {
 		if et == textparse.EntrySeries {
 			b, ts, val := p.Series()
 
+			if ts != nil {
+				now = *ts
+			}
+
 			if math.IsNaN(val) || math.IsInf(val, 0) {
 				continue
 			} // Splunk won't accept NaN metrics etc.
-			output.WriteString(fmt.Sprintf("%s %f %d\n", b, val, *ts))
+			output.WriteString(fmt.Sprintf("%s %f %d\n", b, val, now))
 		}
 	}
 
