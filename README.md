@@ -202,6 +202,5 @@ Full details of available Prometheus options are at: https://prometheus.io/docs/
 ## Known Limitations
 
  - Only Linux on x86_64 is tested for now
- - Validation of configuration is non-existent -- incorrect configuration will not work with little indication as to why
- - Proper logging of the input execution is not yet implemented. You may or may get a log entry of any issues currently.
- - Only some basic HTTP options are supported: no support for Authorization or anything beyond basic TLS options at this time
+ - Validation of configuration is not very advanced -- incorrect configuration will not work with little indication as to why
+ - Only some basic HTTP options are supported, which should be fine for basic Prometheus endpoints but may not work with various proxying methods etc.
