@@ -190,7 +190,8 @@ func run() {
 	defer output.Flush()
 
 	// Need to parse metrics out of body individually to convert from scientific to decimal etc. before handing to Splunk
-	p := textparse.New(body)
+	contentType := resp.Header.Get("Content-Type")
+	p := textparse.New(body, contentType)
 
 	for {
 		et, err := p.Next()
