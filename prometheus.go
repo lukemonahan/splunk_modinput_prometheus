@@ -49,15 +49,89 @@ type param struct {
 
 // Struct to store final config
 type inputConfig struct {
-	URI        string
-	Match      []string
+	URI                string
+	Match              []string
 	InsecureSkipVerify bool
-	Index      string
-	Sourcetype string
-	Host       string
+	Index              string
+	Sourcetype         string
+	Host               string
 }
 
+var (
+	// http://docs.splunk.com/Documentation/Splunk/7.2.1/AdvancedDev/ModInputsLog
+	logInfo  = log.New(os.Stderr, "INFO  (prometheus) ", 0)
+	logDebug = log.New(os.Stderr, "DEBUG (prometheus) ", 0)
+	logError = log.New(os.Stderr, "ERROR (prometheus) ", 0)
+
+	/*
+		    We use match separator ";" for matchSeparator as "," (coma) is reserved to match a label value,
+			or to match label values against regular expressions.
+
+			The following label matching operators exist:
+
+		    =: Select labels that are exactly equal to the provided string.
+		    !=: Select labels that are not equal to the provided string.
+		    =~: Select labels that regex-match the provided string (or substring).
+		    !~: Select labels that do not regex-match the provided string (or substring).
+
+			Please visit:
+			https://prometheus.io/docs/prometheus/latest/querying/basics/#operators
+			for more information on label matching.
+	*/
+
+	matchSeparator = ";"
+)
+
 func main() {
+
+	/*
+
+		TESTING MODULAR INPUTS IN DEV ENVIRONMENT
+
+		In order to local test modular inputs please do the following:
+		http://docs.splunk.com/Documentation/Splunk/7.2.1/AdvancedDev/ModInputsDevTools
+
+		1. Grab the output from you local stanza
+
+		Example for local inputs.conf:
+
+		[prometheus://example-federate]
+		URI = http://localhost:9090/federate
+		match = {__name__=~"..*"}
+		index = prometheus
+		sourcetype = prometheus:metric
+		interval = 60
+		disabled = 1
+
+		# Extract stdin for local testing:
+		$./bin/splunk cmd splunkd print-modinput-config prometheus prometheus://example-federate
+
+		<?xml version="1.0" encoding="UTF-8"?>
+		<input>
+		<server_host>localhost</server_host>
+		<server_uri>https://127.0.0.1:8089</server_uri>
+		<session_key>^gbQv^_I4sBVjoMX6Lo7K6sxK0rpKsdMIZmTecbHdm2L0tKJ1gwl8ctZxI5V^ZX6qTUyAyFEg3FKf3iuZjZoy9KGQ7nmS5WDemZyo_VHVKA7q9q9ecHMrXr</session_key>
+		<checkpoint_dir>/opt/splunk/var/lib/splunk/modinputs/prometheus</checkpoint_dir>
+		<configuration>
+			<stanza name="prometheus://example-federate">
+			<param name="URI">http://localhost:9090/federate</param>
+			<param name="disabled">0</param>
+			<param name="host">localhost</param>
+			<param name="index">prometheus</param>
+			<param name="interval">60</param>
+			<param name="match">{__name__=~"..*"}</param>
+			<param name="sourcetype">prometheus:metric</param>
+			</stanza>
+		</configuration>
+		</input>
+
+		2. Write your stanza into a xml file eg: tester.xml
+
+		3. Use your stanza tester.xml file as stdin for you modular input:
+
+		4. cat tester.xml | go run prometheus.go
+
+	*/
 
 	if len(os.Args) > 1 {
 		if os.Args[1] == "--scheme" {
@@ -137,7 +211,7 @@ func config() inputConfig {
 				inputConfig.Host = p.Value
 			}
 			if p.Name == "match" {
-				for _, m := range strings.Split(p.Value, ",") {
+				for _, m := range strings.Split(p.Value, matchSeparator) {
 					inputConfig.Match = append(inputConfig.Match, m)
 				}
 			}
@@ -152,8 +226,8 @@ func run() {
 	var inputConfig = config()
 
 	tr := &http.Transport{
-        TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
-  }
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
+	}
 
 	client := &http.Client{Transport: tr}
 
@@ -168,6 +242,9 @@ func run() {
 		q.Add("match[]", m)
 	}
 	req.URL.RawQuery = q.Encode()
+
+	// Debug request req.URL
+	logDebug.Print(req.URL)
 
 	// Current timestamp in millis, used if response has no timestamps
 	now := time.Now().UnixNano() / int64(time.Millisecond)

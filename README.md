@@ -139,7 +139,7 @@ The index should be a "metrics" type index. The sourcetype should be prometheus:
 
 ### Federate server
 
-This configuration is to gather all metrics from a Prometheus server. At least one valid "match" must be supplied in order to get any data from a Prometheus federation endpoint. Eatch "match" is entered with comma separation in the Splunk configuration. The example "match" string given here matches all metrics. You can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
+This configuration is to gather all metrics from a Prometheus server. At least one valid "match" must be supplied in order to get any data from a Prometheus federation endpoint. Eatch "match" is entered with semicolon separation in the Splunk configuration. The example "match" string given here matches all metrics. You can learn more about how to configure metrics matching at: https://prometheus.io/docs/prometheus/latest/querying/basics/#instant-vector-selectors
 
 ```
 [prometheus://prom-server-1]

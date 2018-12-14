@@ -43,7 +43,7 @@ URI = <URI>
 * The full URI of the exporter to connect to
 
 match = <match expression>,<match expression>,...
-* Match expressions, comma separated
+* Match expressions, semicolon separated
 * At least one valid match expression must be included if you are connecting to a Prometheus federate endpoint
 * They are usually ignored for most exporters, however
 
