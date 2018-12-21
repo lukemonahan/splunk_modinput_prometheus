@@ -35,6 +35,14 @@ blacklist = <glob pattern>,<glob pattern>,...
 * Applied after the whitelist
 * It is recommended to configure suppression of metrics in Prometheus itself using write_relabel_configs, however this configuration provides a way for the Splunk administrator to blacklist specific metrics also.
 
+metricNamePrefix = <string>
+* A prefix for all metric names from the present stanza
+* Use a ending "." in order to have an extra level on metric name tree display (eg: DEV.)
+
+metricNameParse = <bool>
+* A parser from prometheus default metric name separated by a "_" to a Splunk metric name separated by a "."
+* After activation your prometheus metrics should display in a tree folded manner inside Splunk metric dashboard.
+
 [prometheus://<name>]
 * An outgoing connection to a Prometheus server (e.g. federated) or to a Prometheus exporter
 * Any metrics series found at this endpoint will be converted to Splunk metrics and indexed

@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,10 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/prompb"
 )
+
+// A LabelName is a key for a LabelSet or Metric.  It has a value associated
+// therewith.
+type LabelName string
 
 // Structs to hold XML parsing of input from Splunk
 type input struct {
@@ -61,12 +66,14 @@ type key struct {
 
 // Structs store final config
 type inputConfig struct {
-	BearerToken string
-	Whitelist   []glob.Glob
-	Blacklist   []glob.Glob
-	Index       string
-	Sourcetype  string
-	Host        string
+	BearerToken      string
+	Whitelist        []glob.Glob
+	Blacklist        []glob.Glob
+	Index            string
+	Sourcetype       string
+	Host             string
+	MetricNamePrefix string // Add a custom prefix to metric name
+	MetricNameParse  bool   // Parse metric according to splunk prefix
 }
 
 type globalConfig struct {
@@ -79,6 +86,11 @@ type globalConfig struct {
 }
 
 // End config structs
+
+var (
+	defaultMetricNamePrefix = ""
+	defaultMetricNameParse  = false
+)
 
 func main() {
 
@@ -129,8 +141,8 @@ func doScheme() string {
 }
 
 func validateArguments() {
-  // Currently unused
-  // Will be used to properly validate in future
+	// Currently unused
+	// Will be used to properly validate in future
 	return
 }
 
@@ -151,7 +163,13 @@ func config() (globalConfig, map[string]inputConfig) {
 	configMap := make(map[string]inputConfig)
 
 	for _, s := range input.Configuration.Stanzas {
+
 		var inputConfig inputConfig
+
+		// Defaults
+		inputConfig.MetricNamePrefix = defaultMetricNamePrefix
+		inputConfig.MetricNameParse = defaultMetricNameParse
+
 		for _, p := range s.Params {
 			if p.Name == "whitelist" {
 				for _, w := range strings.Split(p.Value, ",") {
@@ -174,6 +192,12 @@ func config() (globalConfig, map[string]inputConfig) {
 			}
 			if p.Name == "host" {
 				inputConfig.Host = p.Value
+			}
+			if p.Name == "metricNamePrefix" {
+				inputConfig.MetricNamePrefix = p.Value
+			}
+			if p.Name == "metricNameParse" {
+				inputConfig.MetricNameParse = (p.Value == "true")
 			}
 		}
 
@@ -302,7 +326,7 @@ func run() error {
 			m := make(model.Metric, len(ts.Labels))
 
 			for _, l := range ts.Labels {
-				m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
+				m[model.LabelName(l.Name)] = formatMetricLabelValue(l.Value, inputConfig.MetricNameParse, inputConfig.MetricNamePrefix)
 			}
 
 			whitelisted := false
@@ -343,4 +367,24 @@ func run() error {
 	} else {
 		return http.ListenAndServe(globalConfig.ListenAddr, nil)
 	}
+}
+
+func formatMetricLabelValue(value string, parse bool, prefix string) model.LabelValue {
+	// Bypass all metric names started with __
+	// https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+	isSpecialLabel, _ := regexp.MatchString("^__.*", value)
+	if isSpecialLabel {
+		return model.LabelValue(value)
+	}
+
+	s := []string{}
+	s = append(s, prefix)
+
+	if !parse {
+		s = append(s, value)
+	} else {
+		s = append(s, regexp.MustCompile("_").ReplaceAllString(value, "."))
+	}
+
+	return model.LabelValue(strings.Join(s, ""))
 }
