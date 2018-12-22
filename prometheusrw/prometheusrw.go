@@ -21,10 +21,6 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
-// A LabelName is a key for a LabelSet or Metric.  It has a value associated
-// therewith.
-type LabelName string
-
 // Structs to hold XML parsing of input from Splunk
 type input struct {
 	XMLName       xml.Name      `xml:"input"`
