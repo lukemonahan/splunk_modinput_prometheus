@@ -177,6 +177,15 @@ index = another_metrics_index
 whitelist = net*
 sourcetype = prometheus:metric
 disabled = 0
+
+[prometheusrw://parsed]
+bearerToken = PAR042
+index = another_metrics_index
+whitelist = *
+sourcetype = prometheus:metric
+metricNamePrefix = DEV.
+metricNameParse = true
+disabled = 0
 ```
 
 This starts the HTTP listener on port 8098, and any metrics coming in with a bearer token of "ABC123" will be directed to the "testing" input, wheras any received with a bearer token of "DEF456" will be directed to the "another" input. Not including a bearer token, or a non-matching token, will result in a HTTP 401 (Unauthorized).
