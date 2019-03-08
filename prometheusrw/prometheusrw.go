@@ -321,10 +321,6 @@ func run() error {
 		for _, ts := range req.Timeseries {
 			m := make(model.Metric, len(ts.Labels))
 
-			for _, l := range ts.Labels {
-				m[model.LabelName(l.Name)] = formatMetricLabelValue(l.Value, inputConfig.MetricNameParse, inputConfig.MetricNamePrefix)
-			}
-
 			whitelisted := false
 			for _, w := range inputConfig.Whitelist {
 				if w.Match(string(m["__name__"])) {
@@ -347,15 +343,17 @@ func run() error {
 				continue
 			}
 
-			for _, s := range ts.Samples {
+			for el, s := range ts.Samples {
 				if math.IsNaN(s.Value) || math.IsInf(s.Value, 0) {
 					continue
 				} // Splunk won't accept NaN metrics etc.
+				m[model.LabelName(ts.Labels[el].Name)] = formatMetricLabelValue(ts.Labels[el].Value, inputConfig.MetricNameParse, inputConfig.MetricNamePrefix)
 				buffer.WriteString(fmt.Sprintf("%s %f %d\n", m, s.Value, s.Timestamp))
 			}
 		}
 
 		output.Print(buffer.String())
+		buffer.Truncate(0)
 	})
 
 	if globalConfig.EnableTLS == true {
