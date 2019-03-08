@@ -30,48 +30,19 @@ func TestFormatMetricLabelValue(t *testing.T) {
 		output model.LabelValue
 	}{
 		{
-			value:  "__name__",
-			parse:  true,
-			prefix: "",
-			output: "__name__",
-		},
-		{
-			value:  "__name__",
-			parse:  true,
-			prefix: "DEV.",
-			output: "__name__",
-		},
-		{
-			value:  "container_network_receive_errors_total",
-			output: "container_network_receive_errors_total",
-		},
-		{
 			value:  "container_network_receive_errors_total",
 			output: "container.network.receive.errors.total",
-			parse:  true,
-		},
-		{
-			value:  "container_network_receive_errors_total",
-			output: "container.network.receive.errors.total",
-			parse:  true,
 			prefix: "",
 		},
 		{
 			value:  "container_network_receive_errors_total",
 			output: "DEV.container.network.receive.errors.total",
-			parse:  true,
-			prefix: "DEV.",
-		},
-		{
-			value:  "container_network_receive_errors_total",
-			output: "DEV.container_network_receive_errors_total",
-			parse:  false,
 			prefix: "DEV.",
 		},
 	}
 
 	for _, test := range tests {
-		res := formatMetricLabelValue(test.value, test.parse, test.prefix)
+		res := formatMetricLabelValue(test.value, test.prefix)
 		testutil.Equals(t, res, test.output)
 	}
 }
