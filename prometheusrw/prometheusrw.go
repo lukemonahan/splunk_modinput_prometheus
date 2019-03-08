@@ -319,10 +319,11 @@ func run() error {
 			return
 		}
 		for _, ts := range req.Timeseries {
+
 			m := make(model.Metric, len(ts.Labels))
 
 			for _, l := range ts.Labels {
-				m[model.LabelName(l.Name)] = formatMetricLabelValue(l.Value, inputConfig.MetricNameParse, inputConfig.MetricNamePrefix)
+				m[model.LabelName(l.Name)] = model.LabelValue(l.Value)
 			}
 
 			whitelisted := false
@@ -347,6 +348,10 @@ func run() error {
 				continue
 			}
 
+			if inputConfig.MetricNameParse {
+				m["__name__"] = formatMetricLabelValue(string(m["__name__"]), inputConfig.MetricNamePrefix)
+			}
+
 			for _, s := range ts.Samples {
 				if math.IsNaN(s.Value) || math.IsInf(s.Value, 0) {
 					continue
@@ -356,6 +361,7 @@ func run() error {
 		}
 
 		output.Print(buffer.String())
+		buffer.Truncate(0)
 	})
 
 	if globalConfig.EnableTLS == true {
@@ -365,22 +371,9 @@ func run() error {
 	}
 }
 
-func formatMetricLabelValue(value string, parse bool, prefix string) model.LabelValue {
-	// Bypass all metric names started with __
-	// https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	isSpecialLabel, _ := regexp.MatchString("^__.*", value)
-	if isSpecialLabel {
-		return model.LabelValue(value)
-	}
-
+func formatMetricLabelValue(value string, prefix string) model.LabelValue {
 	s := []string{}
 	s = append(s, prefix)
-
-	if !parse {
-		s = append(s, value)
-	} else {
-		s = append(s, regexp.MustCompile("_").ReplaceAllString(value, "."))
-	}
-
+	s = append(s, regexp.MustCompile("_").ReplaceAllString(value, "."))
 	return model.LabelValue(strings.Join(s, ""))
 }
