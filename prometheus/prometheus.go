@@ -229,12 +229,12 @@ func run() {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
 	}
 
-	client := &http.Client{Transport: tr}
+	client := &http.Client{Transport: tr, Timeout: time.Duration(500000 * time.Microsecond)}
 
 	req, err := http.NewRequest("GET", inputConfig.URI, nil)
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Request error", err)
 	}
 
 	q := req.URL.Query()
