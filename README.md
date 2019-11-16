@@ -152,7 +152,7 @@ interval = 60
 disabled = 0
 ```
 
-### Promtheus remote-write
+### Prometheus remote-write
 
 Only one HTTP server is ever run, which is configured by the `[prometheusrw]` input stanza. The individual inputs are then distinguished by bearer tokens. At least one of the individual inputs must be configured, and a matching bearer token must be supplied from Prometheus in order to direct the received metrics to that input.
 
