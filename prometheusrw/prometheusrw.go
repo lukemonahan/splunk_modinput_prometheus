@@ -83,11 +83,6 @@ type globalConfig struct {
 
 // End config structs
 
-var (
-	defaultMetricNamePrefix = ""
-	defaultMetricNameParse  = false
-)
-
 func main() {
 
 	if len(os.Args) > 1 {
@@ -130,6 +125,18 @@ func doScheme() string {
             <required_on_edit>false</required_on_edit>
             <required_on_create>false</required_on_create>
           </arg>
+					<arg name="metricNameParse">
+						<title>Parse metric names</title>
+						<description>Rewrite the name of the Prometheus metric into a more Splunk suitable format. Default true.</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
+					<arg name="metricNamePrefix">
+						<title>Metric name prefix</title>
+						<description>Prefix all metric names with this value. Default "prometheus.".</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
       </endpoint>
     </scheme>`
 
@@ -162,9 +169,8 @@ func config() (globalConfig, map[string]inputConfig) {
 
 		var inputConfig inputConfig
 
-		// Defaults
-		inputConfig.MetricNamePrefix = defaultMetricNamePrefix
-		inputConfig.MetricNameParse = defaultMetricNameParse
+		inputConfig.MetricNameParse = true
+		inputConfig.MetricNamePrefix = "prometheus."
 
 		for _, p := range s.Params {
 			if p.Name == "whitelist" {
@@ -193,9 +199,10 @@ func config() (globalConfig, map[string]inputConfig) {
 				inputConfig.MetricNamePrefix = p.Value
 			}
 			if p.Name == "metricNameParse" {
-				inputConfig.MetricNameParse = (p.Value == "true")
+				inputConfig.MetricNameParse, _ = strconv.ParseBool(p.Value)
 			}
 		}
+
 
 		configMap[inputConfig.BearerToken] = inputConfig
 	}

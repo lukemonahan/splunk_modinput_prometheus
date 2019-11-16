@@ -1,7 +1,5 @@
 # Prometheus Metrics for Splunk
 
-**WARNING**: This is a very early release and has undergone only limited testing. The version will be 1.0 when considered stable and complete.
-
 Prometheus [prometheus.io](https://prometheus.io), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
 
 Splunk [splunk.com](https://www.splunk.com) is a platform for machine data analysis, providing real-time visibility, actionable insights and intelligence across all forms of machine data. Splunk Enterprise since version 7.0 includes the Metrics store for large-scale capture and analysis of time-series metrics alongside log data.
@@ -24,11 +22,9 @@ It has been designed to mimic the Splunk HTTP Event Collector for it's configura
 
 ## Requirements
 
- - Splunk 7.x
- - Prometheus 2.x
+ - Splunk 7.x or later
+ - Prometheus 2.x or later
  - Recent Linux x64
-
- The most testing has been performed on Splunk 7.1.1 and Prometheus 2.3.1 on Fedora 28.
 
  Splunk 6 users could likely use these inputs, by changing the included sourcetypes to not write the metrics metadata. This isn't tested and will not be a focus of the authors.
 
@@ -86,9 +82,9 @@ All metrics gathered by the above methods are in a consistent format in Splunk, 
 
 ## Download
 
-This add-on will be hosted at apps.splunk.com in the near future. It will be uploaded there when some further testing has been completed.
+This add-on is hosted on [Splunkbase](https://splunkbase.splunk.com/app/4077/), and generally the most tested and stable builds are uploaded there.
 
-In the meantime, the latest build is available in the Github releases tab.
+Intermediate builds may also be available in the Github releases tab.
 
 ## Build
 
@@ -184,7 +180,6 @@ index = another_metrics_index
 whitelist = *
 sourcetype = prometheus:metric
 metricNamePrefix = DEV.
-metricNameParse = true
 disabled = 0
 ```
 
@@ -213,3 +208,4 @@ Full details of available Prometheus options are at: https://prometheus.io/docs/
  - Only Linux on x86_64 is tested for now
  - Validation of configuration is not very advanced -- incorrect configuration will not work with little indication as to why
  - Only some basic HTTP options are supported, which should be fine for basic Prometheus endpoints but may not work with various proxying methods etc.
+ - Proper support of histogram type metrics in Splunk 8.0 is not yet implemented
