@@ -1,11 +1,5 @@
 build:
-	make -B prometheusrw
 	make -B prometheus
-
-prometheusrw: prometheusrw/prometheusrw.go
-	go build -o ./out/prometheusrw ./prometheusrw/prometheusrw.go
-
-	mv ./out/prometheusrw modinput_prometheus/linux_x86_64/bin/
 
 prometheus: prometheus/prometheus.go
 	go build  -o ./out/prometheus ./prometheus/prometheus.go

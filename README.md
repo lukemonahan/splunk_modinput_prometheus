@@ -133,6 +133,8 @@ sourcetype = prometheus:metric
 host = myhost
 interval = 60
 disabled = 0
+username = <optional username>
+password = <optional password>
 ```
 
 The index should be a "metrics" type index. The sourcetype should be prometheus:metric, which is configured in the app to recognize the data format and convert it to Splunk metrics.
@@ -150,6 +152,8 @@ sourcetype = prometheus:metric
 host = myhost
 interval = 60
 disabled = 0
+username = <optional username>
+password = <optional password>
 ```
 
 ### Prometheus remote-write
