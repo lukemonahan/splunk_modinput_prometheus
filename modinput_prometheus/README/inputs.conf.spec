@@ -57,3 +57,9 @@ match = <match expression>,<match expression>,...
 
 insecureSkipVerify = <0|1>
 * If the URI is HTTPS, this controls whether the server certificate must be verified in order to continue
+
+username = <string>
+* Provide an optional username to be used with the Prometheus federate endpoint
+
+password = <string>
+* Provide an optional password to be used with the Prometheus federate endpoint

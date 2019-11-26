@@ -55,6 +55,8 @@ type inputConfig struct {
 	Index              string
 	Sourcetype         string
 	Host               string
+	Username           string
+	Password           string
 }
 
 var (
@@ -173,6 +175,18 @@ func doScheme() string {
 						<required_on_edit>false</required_on_edit>
 						<required_on_create>false</required_on_create>
 					</arg>
+					<arg name="username">
+						<title>Username</title>
+						<description>If supplied uses a username in basic auth requests to the endpoint</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
+					<arg name="password">
+						<title>Password</title>
+						<description>If supplied uses a password in basic auth requests to the endpoint</description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
       </endpoint>
     </scheme>`
 
@@ -215,6 +229,12 @@ func config() inputConfig {
 					inputConfig.Match = append(inputConfig.Match, m)
 				}
 			}
+			if p.Name == "username" {
+					inputConfig.Username = p.Value
+			}
+			if p.Name == "password" {
+					inputConfig.Password = p.Value
+			}
 		}
 	}
 
@@ -245,6 +265,11 @@ func run() {
 
 	// Debug request req.URL
 	logDebug.Print(req.URL)
+
+	if inputConfig.Password != "" {
+			req.SetBasicAuth(inputConfig.Username, inputConfig.Password)
+			logDebug.Print(inputConfig.Username)
+	}
 
 	// Current timestamp in millis, used if response has no timestamps
 	now := time.Now().UnixNano() / int64(time.Millisecond)
