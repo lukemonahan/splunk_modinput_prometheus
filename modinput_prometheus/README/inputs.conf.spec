@@ -50,6 +50,9 @@ metricNameParse = <bool>
 URI = <URI>
 * The full URI of the exporter to connect to
 
+Auth = <Auth>
+* The Basic authentication parameter. The value must be in "Basic basic64(username:password)" format
+
 match = <match expression>,<match expression>,...
 * Match expressions, semicolon separated
 * At least one valid match expression must be included if you are connecting to a Prometheus federate endpoint

@@ -50,6 +50,7 @@ type param struct {
 // Struct to store final config
 type inputConfig struct {
 	URI                string
+  Auth               string
 	Match              []string
 	InsecureSkipVerify bool
 	Index              string
@@ -198,6 +199,9 @@ func config() inputConfig {
 			if p.Name == "URI" {
 				inputConfig.URI = p.Value
 			}
+      if p.Name == "Auth" {
+        inputConfig.Auth = p.Value
+      }
 			if p.Name == "insecureSkipVerify" {
 				inputConfig.InsecureSkipVerify, _ = strconv.ParseBool(p.Value)
 			}
@@ -229,10 +233,13 @@ func run() {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
 	}
 
-	client := &http.Client{Transport: tr, Timeout: time.Duration(500000 * time.Microsecond)}
+	client := &http.Client{Transport: tr, Timeout: time.Duration(50 * time.Second)}
 
 	req, err := http.NewRequest("GET", inputConfig.URI, nil)
-
+  if(inputConfig.Auth != "") {
+    logInfo.Print("Adding custom header: Authorization => ", "Reducted, ", "Length=", len(inputConfig.Auth))
+    req.Header.Set("Authorization", inputConfig.Auth)
+  }
 	if err != nil {
 		log.Fatal("Request error", err)
 	}
@@ -298,3 +305,4 @@ func run() {
 
 	return
 }
+
