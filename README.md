@@ -97,18 +97,14 @@ This assumes you have a relatively up-to-date Go build environment set up.
 You will need some dependencies installed:
 
 ```
-$ go get github.com/gogo/protobuf/proto
-$ go get github.com/golang/snappy
-$ go get github.com/prometheus/common/model
-$ go get github.com/prometheus/prometheus/prompb
-$ go get github.com/gobwas/glob
-$ go get github.com/prometheus/prometheus/pkg/textparse
+Different from original source - It is not required anymore
 ```
 
-The "build" make target will build the modular input binaries, and copy them into the correct place in `modinput_prometheus`, which forms the root of the Splunk app.
+The "package" make target will build the modular input binaries, and copy them into the correct place in `modinput_prometheus`, which forms the root of the Splunk app.
+it also builds the tar.gz package for you for installation on Splunk Web UI
 
 ```
-$ make build
+$ make package
 ```
 
 ## Install and configure
@@ -122,7 +118,7 @@ All available parameters for the modular inputs are described in [inputs.conf.sp
 ### Static exporter
 
 The most basic configuration to poll a Prometheus exporter.
-
+The Auth is added here to support basic authentication for the server
 e.g.
 
 ```
@@ -133,6 +129,7 @@ sourcetype = prometheus:metric
 host = myhost
 interval = 60
 disabled = 0
+Auth = Basic <base64(username:password)>
 ```
 
 The index should be a "metrics" type index. The sourcetype should be prometheus:metric, which is configured in the app to recognize the data format and convert it to Splunk metrics.
