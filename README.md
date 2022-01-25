@@ -1,3 +1,8 @@
+# Difference with the original source repo:
+1. Changed to modern depdendancy management with go mod
+2. Added authentication support for [prometheus] endpoints, to better work with endpoints that requires authentication, Simply put the Auth parameter in
+3. Changed configuration of Auth parameter on Splunk UI
+
 # Prometheus Metrics for Splunk
 
 **WARNING**: This is a very early release and has undergone only limited testing. The version will be 1.0 when considered stable and complete.
