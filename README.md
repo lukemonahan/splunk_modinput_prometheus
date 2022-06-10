@@ -102,7 +102,7 @@ $ go get github.com/golang/snappy
 $ go get github.com/prometheus/common/model
 $ go get github.com/prometheus/prometheus/prompb
 $ go get github.com/gobwas/glob
-$ go get github.com/prometheus/prometheus/pkg/textparse
+$ go get github.com/prometheus/prometheus/model/textparse
 ```
 
 The "build" make target will build the modular input binaries, and copy them into the correct place in `modinput_prometheus`, which forms the root of the Splunk app.
