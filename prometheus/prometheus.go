@@ -250,7 +250,7 @@ func run() {
 	req.URL.RawQuery = q.Encode()
 
 	// Debug request req.URL
-	logDebug.Print(req.URL)
+	logInfo.Print(req.URL)
 
 	// Current timestamp in millis, used if response has no timestamps
 	now := time.Now().UnixNano() / int64(time.Millisecond)
@@ -261,6 +261,7 @@ func run() {
 		log.Fatal(err)
 	}
 
+  logInfo.Print("Processing response body")
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
@@ -303,7 +304,7 @@ func run() {
       wroteCount++
 		}
 	}
-  logInfo.Println("Wrote", wroteCount, "metrics to splunk")
+  logInfo.Print("Wrote ", wroteCount, " metrics to splunk")
 	return
 }
 
