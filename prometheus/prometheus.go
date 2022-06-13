@@ -228,7 +228,6 @@ func config() inputConfig {
 func run() {
 
 	var inputConfig = config()
-
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
 	}
@@ -277,6 +276,7 @@ func run() {
 	contentType := resp.Header.Get("Content-Type")
 	p := textparse.New(body, contentType)
 
+  var wroteCount int64 = 0
 	for {
 		et, err := p.Next()
 
@@ -300,9 +300,10 @@ func run() {
 				continue
 			} // Splunk won't accept NaN metrics etc.
 			output.WriteString(fmt.Sprintf("%s %f %d\n", b, val, now))
+      wroteCount++
 		}
 	}
-
+  logInfo.Println("Wrote", wroteCount, "metrics to splunk")
 	return
 }
 
