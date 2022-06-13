@@ -1,7 +1,5 @@
 # Prometheus Metrics for Splunk
 
-**WARNING**: This is a very early release and has undergone only limited testing. The version will be 1.0 when considered stable and complete.
-
 Prometheus [prometheus.io](https://prometheus.io), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
 
 Splunk [splunk.com](https://www.splunk.com) is a platform for machine data analysis, providing real-time visibility, actionable insights and intelligence across all forms of machine data. Splunk Enterprise since version 7.0 includes the Metrics store for large-scale capture and analysis of time-series metrics alongside log data.
@@ -24,13 +22,11 @@ It has been designed to mimic the Splunk HTTP Event Collector for it's configura
 
 ## Requirements
 
- - Splunk 7.x
+ - Splunk 8.x and above
  - Prometheus 2.x
  - Recent Linux x64
 
- The most testing has been performed on Splunk 7.1.1 and Prometheus 2.3.1 on Fedora 28.
-
- Splunk 6 users could likely use these inputs, by changing the included sourcetypes to not write the metrics metadata. This isn't tested and will not be a focus of the authors.
+The most testing has been performed on Splunk 8.2 and Prometheus 2.36 on Ubuntu 20.04
 
 ## Architecture overview
 
@@ -210,6 +206,12 @@ Full details of available Prometheus options are at: https://prometheus.io/docs/
 
 ## Known Limitations
 
- - Only Linux on x86_64 is tested for now
- - Validation of configuration is not very advanced -- incorrect configuration will not work with little indication as to why
+ - Only Linux on x86_64 is tested for now.
+ - Validation of configuration is not very advanced -- incorrect configuration will not work with little indication as to why.
  - Only some basic HTTP options are supported, which should be fine for basic Prometheus endpoints but may not work with various proxying methods etc.
+ - No user interface for configuring inputs at this stage, you'll have to do it all via inputs.conf.
+ - This add-on does not make much sense to run in Splunk Cloud, so no compatibility there. You should run this on a local Heavy Forwarder and forward the generated metrics to Splunk Cloud.
+
+# Binary File Declaration
+
+All binaries built from source code at: https://github.com/lukemonahan/splunk_modinput_prometheus
