@@ -14,7 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/prometheus/prometheus/pkg/textparse"
+	//"github.com/prometheus/prometheus/pkg/textparse"
+	"github.com/prometheus/prometheus/model/textparse"
 )
 
 // Structs to hold XML parsing of input from Splunk
@@ -280,7 +281,11 @@ func run() {
 
 	// Need to parse metrics out of body individually to convert from scientific to decimal etc. before handing to Splunk
 	contentType := resp.Header.Get("Content-Type")
-	p := textparse.New(body, contentType)
+	p, err := textparse.New(body, contentType)
+  
+  if err != nil {
+		log.Fatal(err)
+	}
 
   var wroteCount int64 = 0
 	for {
