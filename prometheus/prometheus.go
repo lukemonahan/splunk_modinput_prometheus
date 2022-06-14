@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"github.com/prometheus/prometheus/pkg/textparse"
 )
 
@@ -225,8 +224,14 @@ func config() inputConfig {
 	return inputConfig
 }
 
+func deadline() {
+  d, _:= time.ParseDuration("50s")
+  <-time.After(d)
+  //fmt.Println("DeadlineExceeded")
+  os.Exit(1)
+}
 func run() {
-
+  go deadline()
 	var inputConfig = config()
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
