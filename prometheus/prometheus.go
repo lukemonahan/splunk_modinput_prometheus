@@ -237,6 +237,9 @@ func run() {
 		log.Fatal("Request error", err)
 	}
 
+  req.Header.Add("application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
+  req.Header.Add("Accept-Encoding", "gzip")
+
 	q := req.URL.Query()
 	for _, m := range inputConfig.Match {
 		q.Add("match[]", m)
