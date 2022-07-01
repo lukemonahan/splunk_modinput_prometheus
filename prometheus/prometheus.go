@@ -55,6 +55,7 @@ type inputConfig struct {
 	Index              string
 	Sourcetype         string
 	Host               string
+	HttpTimeout        int64
 }
 
 var (
@@ -121,6 +122,7 @@ func main() {
 			<param name="interval">60</param>
 			<param name="match">{__name__=~"..*"}</param>
 			<param name="sourcetype">prometheus:metric</param>
+			<param name="httpTimeout">500/param>
 			</stanza>
 		</configuration>
 		</input>
@@ -173,6 +175,12 @@ func doScheme() string {
 						<required_on_edit>false</required_on_edit>
 						<required_on_create>false</required_on_create>
 					</arg>
+					<arg name="httpTimeout">
+						<title>HTTP timeout/title>
+						<description>Number of milliseconds to wait for HTTP timeout. Defaults to 500 if not set or <= 0./description>
+						<required_on_edit>false</required_on_edit>
+						<required_on_create>false</required_on_create>
+					</arg>
       </endpoint>
     </scheme>`
 
@@ -215,8 +223,15 @@ func config() inputConfig {
 					inputConfig.Match = append(inputConfig.Match, m)
 				}
 			}
+			if p.Name == "httpTimeout" {
+				inputConfig.HttpTimeout, _ = strconv.ParseInt(p.Value, 10, 64)
+			}
 		}
 	}
+
+  if (inputConfig.HttpTimeout <= 0) {
+    inputConfig.HttpTimeout = 500
+  }
 
 	return inputConfig
 }
@@ -229,7 +244,7 @@ func run() {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: inputConfig.InsecureSkipVerify},
 	}
 
-	client := &http.Client{Transport: tr, Timeout: time.Duration(500000 * time.Microsecond)}
+	client := &http.Client{Transport: tr, Timeout: time.Duration(time.Millisecond * time.Duration(inputConfig.HttpTimeout))}
 
 	req, err := http.NewRequest("GET", inputConfig.URI, nil)
 
@@ -237,8 +252,9 @@ func run() {
 		log.Fatal("Request error", err)
 	}
 
-  req.Header.Add("application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
+  req.Header.Add("Accept", "application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
   req.Header.Add("Accept-Encoding", "gzip")
+  req.TransferEncoding = []string{"identity"}
 
 	q := req.URL.Query()
 	for _, m := range inputConfig.Match {

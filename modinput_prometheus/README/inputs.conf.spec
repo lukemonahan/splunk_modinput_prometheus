@@ -57,3 +57,6 @@ match = <match expression>,<match expression>,...
 
 insecureSkipVerify = <0|1>
 * If the URI is HTTPS, this controls whether the server certificate must be verified in order to continue
+
+httpTimeout =<integer>
+* Number of milliseconds to wait for HTTP timeout. Defaults to 500 if not set.
