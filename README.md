@@ -1,3 +1,10 @@
+# Deprecation Warning #
+Unfortunately, my available time to maintain this project is very low.
+
+I would suggest that you investigate using the Open Telemetry collector to achieve Prometheus metrics to Splunk and see if it meets your needs first:
+ * https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver
+ * https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/splunkhecexporter
+
 # Prometheus Metrics for Splunk
 
 Prometheus [prometheus.io](https://prometheus.io), a [Cloud Native Computing Foundation](https://cncf.io/) project, is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions, displays the results, and can trigger alerts if some condition is observed to be true.
